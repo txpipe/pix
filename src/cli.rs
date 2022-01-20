@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{ArgEnum, Parser};
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -9,6 +9,15 @@ pub struct Args {
 
     #[clap(short, long, default_value = "images")]
     pub path: PathBuf,
+
+    #[clap(short, long, arg_enum, default_value = "simple")]
+    pub mode: Mode,
+}
+
+#[derive(Clone, Debug, ArgEnum)]
+pub enum Mode {
+    Simple,
+    Advanced,
 }
 
 impl Args {

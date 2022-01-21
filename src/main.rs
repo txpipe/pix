@@ -1,23 +1,31 @@
-use std::io;
+use image::{imageops, GenericImage, GenericImageView, RgbaImage};
 
-use image::{imageops, GenericImage, GenericImageView};
+use nft_gen::{cli::Args, traits::Traits};
 
-use nft_gen::cli::Args;
-
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), String> {
     let args = Args::new();
 
-    let image1_path = args.path.join("image1.png");
+    // let traits = Traits::new();
 
-    let mut image1 = image::open(image1_path).unwrap();
+    let mut images = Vec::new();
 
-    let image2_path = args.path.join("image2.png");
+    for entry in args.path.read_dir().expect("path is not a directory") {
+        if let Ok(entry) = entry {
+            let image = image::open(entry.path()).expect("file not found");
 
-    let image2 = image::open(image2_path).unwrap();
+            images.push(image);
+        }
+    }
 
-    merge(&mut image1, &image2);
+    let (x, y) = images[0].dimensions();
 
-    image1.save("example/output.png").unwrap();
+    let mut base = RgbaImage::new(x, y);
+
+    for image in images {
+        merge(&mut base, &image);
+    }
+
+    base.save("example/output.png").unwrap();
 
     Ok(())
 }

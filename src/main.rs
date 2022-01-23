@@ -2,8 +2,9 @@ use image::{imageops, GenericImage, GenericImageView, RgbaImage};
 
 use nft_gen::{
     cli::Args,
-    traits::{SimpleTrait, Traits},
+    traits::{Trait, Traits},
 };
+use rand::Rng;
 
 fn main() -> Result<(), String> {
     let args = Args::new();
@@ -20,11 +21,18 @@ fn main() -> Result<(), String> {
         "Stuffing",
     ];
 
+    let rarities = vec!["common", "uncommon", "rare", "mythical", "legendary"];
+
     let mut traits = Traits::new();
 
-    for entry in args.path.read_dir().expect("path is not a directory") {
+    for entry in args
+        .path
+        .read_dir()
+        .expect("path is not a directory")
+        .filter(|x| x.as_ref().unwrap().path().is_dir())
+    {
         if let Ok(entry) = entry {
-            let mut simple_trait = SimpleTrait::new();
+            let mut trait_list = Vec::new();
 
             let dir_path = entry.path();
 
@@ -32,11 +40,30 @@ fn main() -> Result<(), String> {
                 .read_dir()
                 .expect("trait must be a folder")
                 .filter(|x| x.as_ref().unwrap().path().is_dir())
+                .filter(|x| {
+                    rarities
+                        .iter()
+                        .any(|y| x.as_ref().unwrap().path().ends_with(y))
+                })
             {
                 if let Ok(rarity) = rarity {
                     let rarity_path = rarity.path();
 
-                    for trait_file in rarity_path.read_dir().expect("rarity must be a directory") {
+                    for trait_file in rarity_path
+                        .read_dir()
+                        .expect("rarity must be a directory")
+                        .filter(|x| x.as_ref().unwrap().path().is_file())
+                        .filter(|x| {
+                            x.as_ref()
+                                .unwrap()
+                                .path()
+                                .extension()
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                == "png"
+                        })
+                    {
                         if let Ok(trait_file) = trait_file {
                             let trait_path = trait_file.path();
 
@@ -47,32 +74,39 @@ fn main() -> Result<(), String> {
                             x = width;
                             y = height;
 
-                            match rarity_path.file_name().unwrap().to_str() {
-                                Some("common") => simple_trait.common.push(image),
-                                Some("uncommon") => simple_trait.uncommon.push(image),
-                                Some("rare") => simple_trait.rare.push(image),
-                                Some("mythical") => simple_trait.mythical.push(image),
-                                Some("legendary") => simple_trait.legendary.push(image),
-                                _ => (),
-                            }
+                            trait_list.push(Trait {
+                                image,
+                                weight: match rarity_path.file_name().unwrap().to_str() {
+                                    Some("common") => 70,
+                                    Some("uncommon") => 50,
+                                    Some("rare") => 20,
+                                    Some("mythical") => 10,
+                                    Some("legendary") => 5,
+                                    _ => unreachable!(),
+                                },
+                            })
                         }
                     }
                 }
             }
 
-            traits.insert(dir_path, simple_trait);
+            traits.insert(dir_path, trait_list);
         }
     }
 
     let mut base = RgbaImage::new(x, y);
 
     for item in order {
-        let simple_trait = traits.get(&args.path.join(item)).unwrap();
+        let trait_list = traits.get(&args.path.join(item)).unwrap();
 
-        merge(&mut base, &simple_trait.legendary[0]);
+        let mut rng = rand::thread_rng();
+
+        let index = rng.gen_range(0..trait_list.len());
+
+        merge(&mut base, &trait_list[index].image);
     }
 
-    base.save("output2.png").unwrap();
+    base.save("output.png").unwrap();
 
     Ok(())
 }

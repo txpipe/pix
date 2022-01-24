@@ -1,27 +1,33 @@
-use std::path::PathBuf;
-
 use clap::{ArgEnum, Parser};
+use serde::Deserialize;
 
 #[derive(Parser, Debug)]
-pub struct Args {
-    #[clap(short, long, default_value = "10000")]
-    pub amount: usize,
-
-    #[clap(short, long, default_value = "images")]
-    pub path: PathBuf,
-
+pub struct NewCommand {
     #[clap(short, long, arg_enum, default_value = "simple")]
     pub mode: Mode,
 }
 
-#[derive(Clone, Debug, ArgEnum)]
+#[derive(Parser, Debug)]
+pub struct GenCommand {
+    #[clap(short, long, default_value = "nft-gen.json")]
+    pub config: String,
+}
+
+#[derive(Parser, Debug)]
+pub enum Commands {
+    New(NewCommand),
+    Gen(GenCommand),
+}
+
+impl Commands {
+    pub fn new() -> Self {
+        Commands::parse()
+    }
+}
+
+#[derive(Clone, Debug, ArgEnum, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Mode {
     Simple,
     Advanced,
-}
-
-impl Args {
-    pub fn new() -> Self {
-        Args::parse()
-    }
 }

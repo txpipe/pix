@@ -1,18 +1,25 @@
+use std::{fs, path::Path};
+
 use image::{imageops, GenericImage, GenericImageView, RgbaImage};
+use rand::Rng;
 
 use nft_gen::{
     cli::{Commands, Mode},
     config::Config,
     traits::{Trait, Traits},
 };
-use rand::Rng;
 
 const RARITIES: [&str; 5] = ["common", "uncommon", "rare", "mythical", "legendary"];
+
+const OUTPUT: &str = "output";
 
 fn main() -> Result<(), String> {
     let cmds = Commands::new();
 
+    let output = Path::new(OUTPUT);
+
     match cmds {
+        Commands::Clean => clean(output),
         Commands::New(_args) => {
             todo!("implement new command")
         }
@@ -23,19 +30,29 @@ fn main() -> Result<(), String> {
 
             let (x, y) = load_traits(&mut traits, &config);
 
-            let mut base = RgbaImage::new(x, y);
+            clean(output);
 
-            for item in config.order {
-                let trait_list = traits.get(&config.path.join(item)).unwrap();
-
-                let mut rng = rand::thread_rng();
-
-                let index = rng.gen_range(0..trait_list.len());
-
-                merge(&mut base, &trait_list[index].image);
+            if !output.exists() {
+                fs::create_dir(output).expect("failed to create output directory");
             }
 
-            base.save("output.png").unwrap();
+            for n in 0..config.amount {
+                let mut base = RgbaImage::new(x, y);
+
+                for item in &config.order {
+                    let trait_list = traits.get(&config.path.join(item)).unwrap();
+
+                    let mut rng = rand::thread_rng();
+
+                    let index = rng.gen_range(0..trait_list.len());
+
+                    merge(&mut base, &trait_list[index].image);
+                }
+
+                let output_file = format!("{}/{}.png", OUTPUT, n);
+
+                base.save(output_file).unwrap();
+            }
         }
     }
 
@@ -50,6 +67,12 @@ where
     imageops::overlay(bottom, top, 0, 0);
 }
 
+fn clean(output: &Path) {
+    if output.exists() {
+        fs::remove_dir_all(output).expect("could not")
+    }
+}
+
 fn load_traits(traits: &mut Traits, config: &Config) -> (u32, u32) {
     let (mut x, mut y) = (0, 0);
 
@@ -60,15 +83,15 @@ fn load_traits(traits: &mut Traits, config: &Config) -> (u32, u32) {
         .filter(|x| x.as_ref().unwrap().path().is_dir());
 
     for feature_dir in feature_paths {
-        let category_dir = feature_dir.unwrap();
-        let category_path = category_dir.path();
+        let feature_dir = feature_dir.unwrap();
+        let feature_path = feature_dir.path();
 
         let mut trait_list = Vec::new();
 
         match config.mode {
             Mode::Advanced => todo!("implement advanced mode"),
             Mode::Simple => {
-                let rarity_paths = category_path
+                let rarity_paths = feature_path
                     .read_dir()
                     .expect("trait must be a folder")
                     .filter(|x| x.as_ref().unwrap().path().is_dir())
@@ -126,7 +149,7 @@ fn load_traits(traits: &mut Traits, config: &Config) -> (u32, u32) {
             }
         }
 
-        traits.insert(category_path, trait_list);
+        traits.insert(feature_path, trait_list);
     }
 
     (x, y)

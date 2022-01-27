@@ -17,6 +17,7 @@ pub struct GenCommand {
 pub enum Commands {
     New(NewCommand),
     Gen(GenCommand),
+    Clean,
 }
 
 impl Commands {

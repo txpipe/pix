@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{collections::HashSet, fs, path::Path, process};
 
 use image::{imageops, GenericImage, GenericImageView, RgbaImage};
 use rand::Rng;
@@ -6,7 +6,7 @@ use rand::Rng;
 use nft_gen::{
     cli::{Commands, Mode},
     config::Config,
-    traits::{Trait, Traits},
+    traits::{FeaturesMap, Trait},
 };
 
 const RARITIES: [&str; 5] = ["common", "uncommon", "rare", "mythical", "legendary"];
@@ -26,9 +26,9 @@ fn main() -> Result<(), String> {
         Commands::Gen(args) => {
             let config = Config::new(&args.config);
 
-            let mut traits = Traits::new();
+            let mut features_map = FeaturesMap::new();
 
-            let (x, y) = load_traits(&mut traits, &config);
+            let (x, y) = load_features(&mut features_map, &config);
 
             clean(output);
 
@@ -36,22 +36,57 @@ fn main() -> Result<(), String> {
                 fs::create_dir(output).expect("failed to create output directory");
             }
 
-            for n in 0..config.amount {
-                let mut base = RgbaImage::new(x, y);
+            let mut features = Vec::new();
 
-                for item in &config.order {
-                    let trait_list = traits.get(&config.path.join(item)).unwrap();
+            for item in config.order {
+                let (_, trait_list) = features_map.get_key_value(&config.path.join(item)).unwrap();
 
-                    let mut rng = rand::thread_rng();
+                features.push(trait_list);
+            }
 
-                    let index = rng.gen_range(0..trait_list.len());
+            let mut fail_count = 0;
 
-                    merge(&mut base, &trait_list[index].image);
+            let mut uniques = HashSet::new();
+
+            let mut count = 1;
+
+            while count <= config.amount {
+                let unique = create_unique(&features);
+
+                let unique_str = unique
+                    .iter()
+                    .map(|n| n.to_string()) // map every integer to a string
+                    .collect::<Vec<String>>()
+                    .join(":");
+
+                if uniques.contains(&unique_str) {
+                    fail_count += 1;
+
+                    if fail_count > config.tolerance {
+                        println!(
+                            "You need more features or traits to generate {}",
+                            config.amount
+                        );
+
+                        process::exit(1);
+                    }
+
+                    continue;
                 }
 
-                let output_file = format!("{}/{}.png", OUTPUT, n);
+                let mut base = RgbaImage::new(x, y);
+
+                for (index, trait_list) in unique.iter().zip(&features) {
+                    merge(&mut base, &trait_list[*index].image);
+                }
+
+                let output_file = format!("{}/{}.png", OUTPUT, count);
 
                 base.save(output_file).unwrap();
+
+                uniques.insert(unique_str);
+
+                count += 1;
             }
         }
     }
@@ -73,7 +108,33 @@ fn clean(output: &Path) {
     }
 }
 
-fn load_traits(traits: &mut Traits, config: &Config) -> (u32, u32) {
+fn create_unique(features: &Vec<&Vec<Trait>>) -> Vec<usize> {
+    let mut random = Vec::new();
+
+    let mut rng = rand::thread_rng();
+
+    for trait_list in features {
+        let total_weight = trait_list.iter().fold(0, |acc, elem| acc + elem.weight);
+
+        let random_num = rng.gen_range(0.0..1.0);
+
+        let mut n = (random_num * total_weight as f64).floor();
+
+        for (index, elem) in trait_list.iter().enumerate() {
+            n -= elem.weight as f64;
+
+            if n < 0.0 {
+                random.push(index);
+
+                break;
+            }
+        }
+    }
+
+    random
+}
+
+fn load_features(features_map: &mut FeaturesMap, config: &Config) -> (u32, u32) {
     let (mut x, mut y) = (0, 0);
 
     let feature_paths = config
@@ -149,7 +210,7 @@ fn load_traits(traits: &mut Traits, config: &Config) -> (u32, u32) {
             }
         }
 
-        traits.insert(feature_path, trait_list);
+        features_map.insert(feature_path, trait_list);
     }
 
     (x, y)

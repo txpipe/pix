@@ -8,6 +8,7 @@ use crate::cli::Mode;
 pub struct Config {
     pub mode: Mode,
     pub amount: usize,
+    pub tolerance: usize,
     pub path: PathBuf,
     pub order: Vec<String>,
 }

@@ -99,8 +99,6 @@ fn main() -> anyhow::Result<()> {
                 match result {
                     Ok(()) => {
                         progress.inc(1);
-
-                        ()
                     }
                     Err(e) => {
                         eprintln!("{}", e);

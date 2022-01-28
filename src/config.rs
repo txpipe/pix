@@ -1,5 +1,6 @@
 use std::{fs::File, path::PathBuf};
 
+use anyhow::Context;
 use serde::Deserialize;
 
 use crate::cli::Mode;
@@ -14,12 +15,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(file_name: &str) -> Self {
-        let config_file = File::open(file_name).expect("error opening config file");
+    pub fn new(file_name: &str) -> anyhow::Result<Self> {
+        let config_file = File::open(file_name).context("opening config file")?;
 
-        let config: Self =
-            serde_json::from_reader(config_file).expect("failed to load config file");
+        let config: Self = serde_json::from_reader(config_file).context("loading config file")?;
 
-        config
+        Ok(config)
     }
 }

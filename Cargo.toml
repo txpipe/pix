@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0.53"
 clap = { version = "3.0.7", features = ["derive"] }
 image = "0.23.14"
+indicatif = "0.16.2"
 rand = "0.8.4"
 rayon = "1.5.1"
 serde = { version = "1.0.135", features = ["derive"] }

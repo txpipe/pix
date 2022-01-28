@@ -2,6 +2,7 @@ use std::{collections::HashSet, fs, path::Path, process};
 
 use anyhow::Context;
 use image::RgbaImage;
+use indicatif::ProgressBar;
 use rayon::prelude::*;
 
 use nft_gen::{
@@ -25,6 +26,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Gen(args) => {
             let config = Config::new(&args.config)?;
+            let progress = ProgressBar::new(config.amount as u64);
 
             let features = Features::load_features(&config)?;
 
@@ -95,13 +97,19 @@ fn main() -> anyhow::Result<()> {
                     .with_context(|| format!("failed to generate {}", output_file));
 
                 match result {
-                    Ok(()) => (),
+                    Ok(()) => {
+                        progress.inc(1);
+
+                        ()
+                    }
                     Err(e) => {
                         eprintln!("{}", e);
                         process::exit(1);
                     }
                 }
-            })
+            });
+
+            progress.finish();
         }
     }
 

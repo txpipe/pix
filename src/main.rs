@@ -2,6 +2,7 @@ use std::{collections::HashSet, fs, path::Path, process};
 
 use anyhow::Context;
 use image::RgbaImage;
+use rayon::prelude::*;
 
 use nft_gen::{
     cli::Commands,
@@ -54,7 +55,7 @@ fn main() -> anyhow::Result<()> {
                     .iter()
                     .map(|n| n.to_string()) // map every integer to a string
                     .collect::<Vec<String>>()
-                    .join("");
+                    .join(":");
 
                 if uniques.contains(&unique_str) {
                     fail_count += 1;
@@ -71,21 +72,36 @@ fn main() -> anyhow::Result<()> {
                     continue;
                 }
 
-                let mut base = RgbaImage::new(initial_width, initial_height);
-
-                for (index, trait_list) in unique.iter().zip(&layers) {
-                    utils::merge(&mut base, &trait_list[*index].image);
-                }
-
-                let output_file = format!("{}/{}.png", OUTPUT, count);
-
-                base.save(&output_file)
-                    .with_context(|| format!("failed to generate {}", output_file))?;
-
                 uniques.insert(unique_str);
 
                 count += 1;
             }
+
+            uniques.par_iter().for_each(|unique_str| {
+                let mut base = RgbaImage::new(initial_width, initial_height);
+
+                let unique = unique_str
+                    .split(":")
+                    .map(|index| index.parse::<usize>().unwrap());
+
+                for (index, trait_list) in unique.zip(&layers) {
+                    utils::merge(&mut base, &trait_list[index].image);
+                }
+
+                let output_file = format!("{}/{}.png", OUTPUT, unique_str);
+
+                let result = base
+                    .save(&output_file)
+                    .with_context(|| format!("failed to generate {}", output_file));
+
+                match result {
+                    Ok(()) => (),
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        process::exit(1);
+                    }
+                }
+            })
         }
     }
 

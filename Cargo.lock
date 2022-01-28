@@ -306,6 +306,7 @@ dependencies = [
  "clap",
  "image",
  "rand",
+ "rayon",
  "serde",
  "serde_json",
 ]

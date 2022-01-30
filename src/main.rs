@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
                 let mut base = RgbaImage::new(initial_width, initial_height);
 
                 let unique = unique_str
-                    .split(":")
+                    .split(':')
                     .map(|index| index.parse::<usize>().unwrap());
 
                 for (index, trait_list) in unique.zip(&layers) {

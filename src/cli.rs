@@ -20,6 +20,12 @@ pub enum Commands {
     Clean,
 }
 
+impl Default for Commands {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Commands {
     pub fn new() -> Self {
         Commands::parse()

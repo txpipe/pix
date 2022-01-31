@@ -14,10 +14,18 @@ pub struct GenCommand {
 }
 
 #[derive(Parser, Debug)]
+pub struct UploadCommand {
+    #[clap(short, long, default_value = "nft-gen.json")]
+    pub config: String,
+}
+
+#[derive(Parser, Debug)]
 pub enum Commands {
-    New(NewCommand),
-    Gen(GenCommand),
     Clean,
+    Gen(GenCommand),
+    Init,
+    New(NewCommand),
+    Upload(UploadCommand),
 }
 
 impl Default for Commands {

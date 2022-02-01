@@ -110,11 +110,6 @@ fn main() -> anyhow::Result<()> {
             progress.finish();
         }
 
-        // Commands::Init => {
-        //  else {
-        //         println!("Already initialized")
-        //     }
-        // }
         Commands::New(_args) => {
             if let Some(project_dirs) = ProjectDirs::from("com", "3Based", "NFTGen") {
                 dbg!(project_dirs.config_dir());

@@ -4,7 +4,7 @@ use anyhow::Context;
 use image::{DynamicImage, GenericImageView};
 use rand::Rng;
 
-use crate::{cli::Mode, config::GenConfig};
+use crate::{cli::Mode, config::AppConfig};
 
 const RARITIES: [&str; 5] = ["common", "uncommon", "rare", "mythical", "legendary"];
 
@@ -15,7 +15,7 @@ pub struct Features {
 }
 
 impl Features {
-    pub fn load_features(config: &GenConfig) -> anyhow::Result<Self> {
+    pub fn load_features(config: &AppConfig) -> anyhow::Result<Self> {
         let mut layers_map = HashMap::new();
 
         let (mut initial_width, mut initial_height) = (0, 0);
@@ -102,7 +102,7 @@ impl Features {
         })
     }
 
-    pub fn layers<'a>(&'a self, config: &GenConfig) -> anyhow::Result<Layers<'a>> {
+    pub fn layers<'a>(&'a self, config: &AppConfig) -> anyhow::Result<Layers<'a>> {
         let mut layers = Vec::new();
 
         for item in &config.order {

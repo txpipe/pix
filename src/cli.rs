@@ -23,7 +23,6 @@ pub struct UploadCommand {
 pub enum Commands {
     Clean,
     Gen(GenCommand),
-    Init,
     New(NewCommand),
     Upload(UploadCommand),
 }

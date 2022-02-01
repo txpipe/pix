@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::io::Write;
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Context};
 use config::{Config, File};
@@ -8,45 +9,26 @@ use serde::Deserialize;
 use crate::cli::Mode;
 
 #[derive(Deserialize, Debug)]
-pub struct GenConfig {
+pub struct AppConfig {
     pub mode: Mode,
     pub amount: usize,
     pub tolerance: usize,
     pub path: PathBuf,
     pub order: Vec<String>,
-}
-
-impl GenConfig {
-    pub fn new(file_name: &str) -> anyhow::Result<Self> {
-        let mut s = Config::default();
-
-        s.merge(File::with_name(file_name).required(true))?;
-
-        s.try_into()
-            .map_err(|_| anyhow!("failed to load local config"))
-    }
+    pub nft_maker: Option<NftMakerLocalConfig>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct NftMakerConfig {
+pub struct NftMakerLocalConfig {
     pub apikey: String,
+    pub nft_project_id: i32,
 }
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "kebab-case")]
-pub struct GlobalConfig {
-    pub nft_maker: NftMakerConfig,
-}
-
-impl GlobalConfig {
+impl AppConfig {
     pub fn new(file_name: &str) -> anyhow::Result<Self> {
         let mut s = Config::default();
 
         let (_, global_path) = get_global_config_paths()?;
-
-        if !global_path.exists() {
-            return Err(anyhow!("make sure to run init"));
-        }
 
         let global_file_name = global_path
             .to_str()
@@ -54,10 +36,10 @@ impl GlobalConfig {
 
         s.merge(File::with_name(global_file_name).required(true))?;
 
-        s.merge(File::with_name(file_name).required(false))?;
+        s.merge(File::with_name(file_name).required(true))?;
 
         s.try_into()
-            .map_err(|_| anyhow!("failed to load global config"))
+            .map_err(|e| anyhow!("loading config\nReason: {}", e.to_string()))
     }
 }
 
@@ -72,4 +54,30 @@ pub fn get_global_config_paths() -> anyhow::Result<(PathBuf, PathBuf)> {
     let path = [config_dir_str, "global.json"].iter().collect();
 
     Ok((config_dir, path))
+}
+
+pub fn create_global_config_paths() -> anyhow::Result<()> {
+    let (global_config_dir, global_config_file) = get_global_config_paths()?;
+
+    if !global_config_dir.exists() {
+        fs::create_dir_all(global_config_dir)?;
+    }
+
+    if !global_config_file.exists() {
+        let mut file = fs::File::create(global_config_file)?;
+
+        file.write_all(b"{}")?;
+    }
+
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+pub struct NftMakerGlobalConfig {
+    pub apikey: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GlobalConfig {
+    pub nft_maker: NftMakerGlobalConfig,
 }

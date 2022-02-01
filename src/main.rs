@@ -1,10 +1,4 @@
-use std::{
-    collections::HashSet,
-    fs::{self, File},
-    io::Write,
-    path::Path,
-    process,
-};
+use std::{collections::HashSet, fs, path::Path, process};
 
 use anyhow::{anyhow, Context};
 use directories_next::ProjectDirs;
@@ -14,7 +8,8 @@ use rayon::prelude::*;
 
 use nft_gen::{
     cli::Commands,
-    config::{self, GenConfig, GlobalConfig},
+    config::AppConfig,
+    nft_maker::NftMakerClient,
     traits::{self, Features},
     utils,
 };
@@ -30,7 +25,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Clean => utils::clean(output)?,
 
         Commands::Gen(args) => {
-            let config = GenConfig::new(&args.config)?;
+            let config = AppConfig::new(&args.config)?;
             let progress = ProgressBar::new(config.amount as u64);
 
             let features = Features::load_features(&config)?;
@@ -115,22 +110,11 @@ fn main() -> anyhow::Result<()> {
             progress.finish();
         }
 
-        Commands::Init => {
-            let (global_config_dir, global_config_file) = config::get_global_config_paths()?;
-
-            if !global_config_dir.exists() {
-                fs::create_dir_all(global_config_dir)?;
-            }
-
-            if !global_config_file.exists() {
-                let mut file = File::create(global_config_file)?;
-
-                file.write_all(b"{}")?;
-            } else {
-                println!("Already initialized")
-            }
-        }
-
+        // Commands::Init => {
+        //  else {
+        //         println!("Already initialized")
+        //     }
+        // }
         Commands::New(_args) => {
             if let Some(project_dirs) = ProjectDirs::from("com", "3Based", "NFTGen") {
                 dbg!(project_dirs.config_dir());
@@ -145,9 +129,19 @@ fn main() -> anyhow::Result<()> {
                 return Err(anyhow!("no output found, try running gen first"));
             }
 
-            let config = GlobalConfig::new(&args.config)?;
+            let config = AppConfig::new(&args.config)?;
 
-            println!("{:?}", config);
+            if let Some(nft_maker_config) = config.nft_maker {
+                let nft_maker = NftMakerClient::new(nft_maker_config.apikey);
+
+                let data = nft_maker.upload_nft(nft_maker_config.nft_project_id)?;
+
+                println!("res: {:?}", data)
+            } else {
+                eprintln!("Error: please provide an nft_maker config to upload");
+
+                process::exit(1);
+            }
         }
     }
 

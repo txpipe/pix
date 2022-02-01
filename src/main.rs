@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs, path::Path, process};
+use std::{collections::HashSet, fs, path::Path, process, time::Duration};
 
 use anyhow::{anyhow, Context};
 use directories_next::ProjectDirs;
@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use nft_gen::{
     cli::Commands,
     config::AppConfig,
-    nft_maker::NftMakerClient,
+    nft_maker::{NftFile, NftMakerClient, UploadNftRequest},
     traits::{self, Features},
     utils,
 };
@@ -129,9 +129,45 @@ fn main() -> anyhow::Result<()> {
             if let Some(nft_maker_config) = config.nft_maker {
                 let nft_maker = NftMakerClient::new(nft_maker_config.apikey);
 
-                let data = nft_maker.upload_nft(nft_maker_config.nft_project_id)?;
+                let output_dir = output
+                    .read_dir()
+                    .with_context(|| format!("{} is not a folder", output.display()))?;
 
-                println!("res: {:?}", data)
+                // let total = output_dir.count();
+
+                let handle = std::thread::spawn(move || {
+                    for (index, nft_file) in output_dir.enumerate() {
+                        let nft = image::open(nft_file.unwrap().path())
+                            .expect("failed to load nft image");
+
+                        let nft_base64 = base64::encode(nft.to_bytes());
+
+                        let body = UploadNftRequest {
+                            asset_name: Some(String::from("BasedBears")),
+                            preview_image_nft: NftFile {
+                                mimetype: Some(String::from("image/png")),
+                                description: None,
+                                displayname: Some(format!("BasedBear#{}", index)),
+                                file_from_IPFS: None,
+                                file_froms_url: None,
+                                file_from_base64: Some(nft_base64),
+                                metadata_placeholder: vec![],
+                            },
+                            subfiles: vec![],
+                            metadata: None,
+                        };
+
+                        let data = nft_maker
+                            .upload_nft(nft_maker_config.nft_project_id, &body)
+                            .expect("failed to upload nft");
+
+                        println!("res: {:?}", data);
+
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                });
+
+                handle.join().map_err(|_| anyhow!("error uploading nfts"))?;
             } else {
                 eprintln!("Error: please provide an nft_maker config to upload");
 

@@ -127,6 +127,8 @@ fn main() -> anyhow::Result<()> {
             let config = AppConfig::new(&args.config)?;
 
             if let Some(nft_maker_config) = config.nft_maker {
+                let (tx, rx) = std::sync::mpsc::sync_channel(config.amount);
+
                 let nft_maker = NftMakerClient::new(nft_maker_config.apikey);
 
                 let output_dir = output
@@ -135,7 +137,7 @@ fn main() -> anyhow::Result<()> {
 
                 // let total = output_dir.count();
 
-                let handle = std::thread::spawn(move || {
+                let uploader = std::thread::spawn(move || {
                     for (index, nft_file) in output_dir.enumerate() {
                         let nft = image::open(nft_file.unwrap().path())
                             .expect("failed to load nft image");
@@ -157,17 +159,41 @@ fn main() -> anyhow::Result<()> {
                             metadata: None,
                         };
 
-                        let data = nft_maker
+                        let _data = nft_maker
                             .upload_nft(nft_maker_config.nft_project_id, &body)
                             .expect("failed to upload nft");
 
-                        println!("res: {:?}", data);
+                        tx.send(index).expect("failed to send progress");
 
                         std::thread::sleep(Duration::from_millis(10));
                     }
                 });
 
-                handle.join().map_err(|_| anyhow!("error uploading nfts"))?;
+                let progress_bar = std::thread::spawn(move || {
+                    let progress = ProgressBar::new(config.amount as u64);
+
+                    loop {
+                        let index = rx.recv().expect("unable to receive index");
+
+                        if index < config.amount {
+                            progress.inc(1);
+                        }
+
+                        if index == config.amount - 1 {
+                            break;
+                        }
+                    }
+
+                    progress.finish();
+                });
+
+                uploader
+                    .join()
+                    .map_err(|_| anyhow!("error uploading nfts"))?;
+
+                progress_bar
+                    .join()
+                    .map_err(|_| anyhow!("error with progress bar"))?;
             } else {
                 eprintln!("Error: please provide an nft_maker config to upload");
 

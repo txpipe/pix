@@ -1,7 +1,7 @@
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
-const BASE_URL: &str = "https://api.nft-maker.io";
+static BASE_URL: &str = "https://api.nft-maker.io";
 
 pub struct NftMakerClient {
     apikey: String,

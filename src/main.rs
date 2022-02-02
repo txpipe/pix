@@ -1,4 +1,10 @@
-use std::{collections::HashSet, fs, path::Path, process, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::Path,
+    process,
+    time::Duration,
+};
 
 use anyhow::{anyhow, Context};
 use directories_next::ProjectDirs;
@@ -38,10 +44,6 @@ fn main() -> anyhow::Result<()> {
 
             utils::clean(output)?;
 
-            if !output.exists() {
-                fs::create_dir(output).context("creating output directory")?;
-            }
-
             let layers = features.layers(&config)?;
 
             let mut fail_count = 0;
@@ -79,33 +81,47 @@ fn main() -> anyhow::Result<()> {
                 count += 1;
             }
 
-            uniques.par_iter().for_each(|unique_str| {
-                let mut base = RgbaImage::new(initial_width, initial_height);
+            if !output.exists() {
+                fs::create_dir(output).context("creating output directory")?;
+            }
 
-                let unique = unique_str
-                    .split(':')
-                    .map(|index| index.parse::<usize>().unwrap());
+            uniques
+                .into_iter()
+                .enumerate()
+                .collect::<Vec<(usize, String)>>()
+                .par_iter()
+                .for_each(|(count, unique_str)| {
+                    let mut base = RgbaImage::new(initial_width, initial_height);
 
-                for (index, trait_list) in unique.zip(&layers) {
-                    utils::merge(&mut base, &trait_list[index].image);
-                }
+                    let unique = unique_str
+                        .split(':')
+                        .map(|index| index.parse::<usize>().unwrap());
 
-                let output_file = format!("{}/{}.png", OUTPUT, unique_str);
+                    let mut trait_info = HashMap::new();
 
-                let result = base
-                    .save(&output_file)
-                    .with_context(|| format!("failed to generate {}", output_file));
+                    let folder_name = output.join(format!("{}#{}", config.name, count));
+                    fs::create_dir(&folder_name).expect("failed to created a folder for an NFT");
 
-                match result {
-                    Ok(()) => {
-                        progress.inc(1);
+                    for (index, trait_list) in unique.zip(&layers) {
+                        let nft_trait = &trait_list[index];
+
+                        trait_info.insert(&nft_trait.layer, &nft_trait.name);
+
+                        utils::merge(&mut base, &nft_trait.image);
                     }
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        process::exit(1);
-                    }
-                }
-            });
+
+                    let nft_image_path = folder_name.join(format!("{}#{}.png", config.name, count));
+                    let metadata_path = folder_name.join(format!("{}#{}.json", config.name, count));
+
+                    base.save(nft_image_path).expect("failed to create image");
+
+                    let metadata =
+                        serde_json::to_string(&trait_info).expect("failed to create metadata");
+
+                    fs::write(metadata_path, metadata).expect("failed to create metadata");
+
+                    progress.inc(1);
+                });
 
             progress.finish();
         }
@@ -127,73 +143,45 @@ fn main() -> anyhow::Result<()> {
             let config = AppConfig::new(&args.config)?;
 
             if let Some(nft_maker_config) = config.nft_maker {
-                let (tx, rx) = std::sync::mpsc::sync_channel(config.amount);
-
                 let nft_maker = NftMakerClient::new(nft_maker_config.apikey);
 
                 let output_dir = output
                     .read_dir()
                     .with_context(|| format!("{} is not a folder", output.display()))?;
 
-                // let total = output_dir.count();
+                let progress = ProgressBar::new(config.amount as u64);
 
-                let uploader = std::thread::spawn(move || {
-                    for (index, nft_file) in output_dir.enumerate() {
-                        let nft = image::open(nft_file.unwrap().path())
-                            .expect("failed to load nft image");
+                for (index, nft_file) in output_dir.enumerate() {
+                    let nft =
+                        image::open(nft_file.unwrap().path()).expect("failed to load nft image");
 
-                        let nft_base64 = base64::encode(nft.to_bytes());
+                    let nft_base64 = base64::encode(nft.to_bytes());
 
-                        let body = UploadNftRequest {
-                            asset_name: Some(String::from("BasedBears")),
-                            preview_image_nft: NftFile {
-                                mimetype: Some(String::from("image/png")),
-                                description: None,
-                                displayname: Some(format!("BasedBear#{}", index)),
-                                file_from_IPFS: None,
-                                file_froms_url: None,
-                                file_from_base64: Some(nft_base64),
-                                metadata_placeholder: vec![],
-                            },
-                            subfiles: vec![],
-                            metadata: None,
-                        };
+                    let body = UploadNftRequest {
+                        asset_name: Some(String::from("BasedBears")),
+                        preview_image_nft: NftFile {
+                            mimetype: Some(String::from("image/png")),
+                            description: None,
+                            displayname: Some(format!("BasedBear#{}", index)),
+                            file_from_IPFS: None,
+                            file_froms_url: None,
+                            file_from_base64: Some(nft_base64),
+                            metadata_placeholder: vec![],
+                        },
+                        subfiles: vec![],
+                        metadata: None,
+                    };
 
-                        let _data = nft_maker
-                            .upload_nft(nft_maker_config.nft_project_id, &body)
-                            .expect("failed to upload nft");
+                    let _data = nft_maker
+                        .upload_nft(nft_maker_config.nft_project_id, &body)
+                        .expect("failed to upload nft");
 
-                        tx.send(index).expect("failed to send progress");
+                    progress.inc(1);
 
-                        std::thread::sleep(Duration::from_millis(10));
-                    }
-                });
+                    std::thread::sleep(Duration::from_millis(10));
+                }
 
-                let progress_bar = std::thread::spawn(move || {
-                    let progress = ProgressBar::new(config.amount as u64);
-
-                    loop {
-                        let index = rx.recv().expect("unable to receive index");
-
-                        if index < config.amount {
-                            progress.inc(1);
-                        }
-
-                        if index == config.amount - 1 {
-                            break;
-                        }
-                    }
-
-                    progress.finish();
-                });
-
-                uploader
-                    .join()
-                    .map_err(|_| anyhow!("error uploading nfts"))?;
-
-                progress_bar
-                    .join()
-                    .map_err(|_| anyhow!("error with progress bar"))?;
+                progress.finish();
             } else {
                 eprintln!("Error: please provide an nft_maker config to upload");
 

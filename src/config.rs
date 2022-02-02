@@ -10,6 +10,7 @@ use crate::cli::Mode;
 
 #[derive(Deserialize, Debug)]
 pub struct AppConfig {
+    pub name: String,
     pub mode: Mode,
     pub amount: usize,
     pub tolerance: usize,

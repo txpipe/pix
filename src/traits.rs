@@ -30,6 +30,13 @@ impl Features {
             let feature_dir = feature_dir?;
             let feature_path = feature_dir.path();
 
+            let layer_name = feature_path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string();
+
             let mut trait_list = Vec::new();
 
             match config.mode {
@@ -76,7 +83,16 @@ impl Features {
                                 initial_height = height;
                             }
 
+                            let name = trait_path
+                                .file_stem()
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_string();
+
                             trait_list.push(Trait {
+                                layer: layer_name.clone(),
+                                name,
                                 image,
                                 weight: match rarity_name {
                                     Some("common") => 70,
@@ -150,6 +166,8 @@ pub fn create_unique(features: &Layers) -> Vec<usize> {
 
 #[derive(Debug)]
 pub struct Trait {
+    pub layer: String,
+    pub name: String,
     pub weight: u32,
     pub image: DynamicImage,
 }

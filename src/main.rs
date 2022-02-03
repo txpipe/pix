@@ -10,7 +10,7 @@ use nft_gen::{
     cli::Commands,
     config::AppConfig,
     metadata,
-    nft_maker::{NftFile, NftMakerClient, UploadNftRequest},
+    nft_maker::{MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest},
     traits::{self, Features},
     utils,
 };
@@ -158,34 +158,71 @@ fn main() -> anyhow::Result<()> {
 
                 let progress = ProgressBar::new(config.amount as u64);
 
-                for (index, nft_file) in output_dir.enumerate() {
-                    let nft =
-                        image::open(nft_file.unwrap().path()).expect("failed to load nft image");
+                for nft_dir in output_dir {
+                    let nft_dir = nft_dir?;
+                    let nft_path = nft_dir.path();
 
-                    let nft_base64 = base64::encode(nft.to_bytes());
+                    let nft_name = nft_path.file_name().unwrap().to_str().unwrap();
 
-                    let body = UploadNftRequest {
-                        asset_name: Some(format!("BasedBear{}", index)),
-                        preview_image_nft: NftFile {
-                            mimetype: Some(String::from("image/png")),
-                            description: None,
-                            displayname: Some(format!("Based Bear #{}", index)),
-                            file_from_IPFS: None,
-                            file_froms_url: None,
-                            file_from_base64: Some(nft_base64),
-                            metadata_placeholder: vec![],
-                        },
-                        subfiles: vec![],
-                        metadata: None,
-                    };
+                    let split_name: Vec<&str> = nft_name.split('#').collect();
 
-                    let _data = nft_maker
-                        .upload_nft(nft_maker_config.nft_project_id, &body)
-                        .expect("failed to upload nft");
+                    let number = split_name[1];
 
-                    progress.inc(1);
+                    let nft_file_path = nft_path.join(format!("{}.png", nft_name));
 
-                    std::thread::sleep(Duration::from_millis(10));
+                    let nft_attributes_file_path = nft_path.join(format!("{}.json", nft_name));
+
+                    let nft_attributes_file = fs::File::open(&nft_attributes_file_path)?;
+
+                    let nft = image::open(&nft_file_path)?;
+
+                    let nft_attributes = serde_json::from_reader(&nft_attributes_file)?;
+
+                    if let Value::Object(attributes) = nft_attributes {
+                        let nft_base64 = base64::encode(nft.to_bytes());
+
+                        let metadata_placeholder: Vec<MetadataPlaceholder> = attributes
+                            .values()
+                            .enumerate()
+                            .map(|(index, attr)| {
+                                if let Value::String(attr) = attr {
+                                    MetadataPlaceholder {
+                                        name: Some(format!("attribute{}", index)),
+                                        value: Some(attr.to_owned()),
+                                    }
+                                } else {
+                                    eprintln!("attribute values should be strings");
+
+                                    process::exit(1);
+                                }
+                            })
+                            .collect();
+
+                        let body = UploadNftRequest {
+                            asset_name: Some(format!("BasedBear{}", number)),
+                            preview_image_nft: NftFile {
+                                mimetype: Some(String::from("image/png")),
+                                description: None,
+                                displayname: Some(format!("Based Bear #{}", number)),
+                                file_from_IPFS: None,
+                                file_froms_url: None,
+                                file_from_base64: Some(nft_base64),
+                                metadata_placeholder,
+                            },
+                            subfiles: vec![],
+                            metadata: None,
+                        };
+
+                        let _data = nft_maker
+                            .upload_nft(nft_maker_config.nft_project_id, &body)
+                            .expect("failed to upload nft");
+
+                        progress.inc(1);
+
+                        std::thread::sleep(Duration::from_millis(10));
+                    } else {
+                        return Err(anyhow!("failed to nft attributes"));
+                    }
                 }
 
                 progress.finish();

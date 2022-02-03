@@ -11,11 +11,14 @@ use crate::cli::Mode;
 #[derive(Deserialize, Debug)]
 pub struct AppConfig {
     pub name: String,
+    pub twitter: Option<String>,
+    pub website: Option<String>,
+    pub copyright: Option<String>,
     pub mode: Mode,
     pub amount: usize,
     pub tolerance: usize,
     pub path: PathBuf,
-    pub order: Vec<String>,
+    pub attributes: Vec<String>,
     pub nft_maker: Option<NftMakerLocalConfig>,
 }
 

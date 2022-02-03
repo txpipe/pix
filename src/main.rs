@@ -1,10 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fs,
-    path::Path,
-    process,
-    time::Duration,
-};
+use std::{collections::HashSet, fs, path::Path, process, time::Duration};
 
 use anyhow::{anyhow, Context};
 use directories_next::ProjectDirs;
@@ -15,10 +9,12 @@ use rayon::prelude::*;
 use nft_gen::{
     cli::Commands,
     config::AppConfig,
+    metadata,
     nft_maker::{NftFile, NftMakerClient, UploadNftRequest},
     traits::{self, Features},
     utils,
 };
+use serde_json::{Map, Value};
 
 const OUTPUT: &str = "output";
 
@@ -97,7 +93,7 @@ fn main() -> anyhow::Result<()> {
                         .split(':')
                         .map(|index| index.parse::<usize>().unwrap());
 
-                    let mut trait_info = HashMap::new();
+                    let mut trait_info = Map::new();
 
                     let folder_name = output.join(format!("{}#{}", config.name, count));
                     fs::create_dir(&folder_name).expect("failed to created a folder for an NFT");
@@ -105,7 +101,10 @@ fn main() -> anyhow::Result<()> {
                     for (index, trait_list) in unique.zip(&layers) {
                         let nft_trait = &trait_list[index];
 
-                        trait_info.insert(&nft_trait.layer, &nft_trait.name);
+                        trait_info.insert(
+                            nft_trait.layer.to_owned(),
+                            Value::String(nft_trait.name.to_owned()),
+                        );
 
                         utils::merge(&mut base, &nft_trait.image);
                     }
@@ -124,6 +123,14 @@ fn main() -> anyhow::Result<()> {
                 });
 
             progress.finish();
+        }
+
+        Commands::Metadata(args) => {
+            let config = AppConfig::new(&args.config)?;
+
+            let template = metadata::build_template(&config);
+
+            println!("{}", template);
         }
 
         Commands::New(_args) => {
@@ -158,11 +165,11 @@ fn main() -> anyhow::Result<()> {
                     let nft_base64 = base64::encode(nft.to_bytes());
 
                     let body = UploadNftRequest {
-                        asset_name: Some(String::from("BasedBears")),
+                        asset_name: Some(format!("BasedBear{}", index)),
                         preview_image_nft: NftFile {
                             mimetype: Some(String::from("image/png")),
                             description: None,
-                            displayname: Some(format!("BasedBear#{}", index)),
+                            displayname: Some(format!("Based Bear #{}", index)),
                             file_from_IPFS: None,
                             file_froms_url: None,
                             file_from_base64: Some(nft_base64),

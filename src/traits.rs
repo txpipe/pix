@@ -121,7 +121,7 @@ impl Features {
     pub fn layers<'a>(&'a self, config: &AppConfig) -> anyhow::Result<Layers<'a>> {
         let mut layers = Vec::new();
 
-        for item in &config.order {
+        for item in &config.attributes {
             let trait_list = self
                 .layers_map
                 .get(&config.path.join(item))

@@ -15,7 +15,7 @@ pub struct Features {
 }
 
 impl Features {
-    pub fn load_features(config: &AppConfig) -> anyhow::Result<Self> {
+    pub fn load_layers(config: &AppConfig) -> anyhow::Result<Self> {
         let mut layers_map = HashMap::new();
 
         let (mut initial_width, mut initial_height) = (0, 0);

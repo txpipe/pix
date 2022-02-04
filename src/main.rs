@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
             let config = AppConfig::new(&args.config)?;
             let progress = ProgressBar::new(config.amount as u64);
 
-            let features = Features::load_features(&config)?;
+            let features = Features::load_layers(&config)?;
 
             let Features {
                 initial_width,
@@ -136,9 +136,6 @@ fn main() -> anyhow::Result<()> {
         Commands::New(_args) => {
             if let Some(project_dirs) = ProjectDirs::from("com", "3Based", "NFTGen") {
                 dbg!(project_dirs.config_dir());
-                // Lin: Some(/home/alice/.local/bin)
-                // Win: None
-                // Mac: None
             }
         }
 

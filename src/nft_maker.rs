@@ -1,4 +1,7 @@
-use reqwest::blocking::Client;
+use reqwest::{
+    blocking::Client,
+    header::{HeaderMap, CONTENT_TYPE},
+};
 use serde::{Deserialize, Serialize};
 
 static BASE_URL: &str = "https://api.nft-maker.io";
@@ -9,10 +12,14 @@ pub struct NftMakerClient {
 }
 
 impl NftMakerClient {
-    pub fn new(apikey: String) -> Self {
-        let client = Client::new();
+    pub fn new(apikey: String) -> anyhow::Result<Self> {
+        let mut headers = HeaderMap::new();
 
-        Self { apikey, client }
+        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+
+        let client = Client::builder().default_headers(headers).build()?;
+
+        Ok(Self { apikey, client })
     }
 
     pub fn upload_nft(

@@ -150,7 +150,7 @@ fn main() -> anyhow::Result<()> {
             let config = AppConfig::new(&args.config)?;
 
             if let Some(nft_maker_config) = config.nft_maker {
-                let nft_maker = NftMakerClient::new(nft_maker_config.apikey);
+                let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
 
                 let output_dir = output
                     .read_dir()
@@ -174,12 +174,12 @@ fn main() -> anyhow::Result<()> {
 
                     let nft_attributes_file = fs::File::open(&nft_attributes_file_path)?;
 
-                    let nft = image::open(&nft_file_path)?;
+                    let nft = fs::read(&nft_file_path)?;
 
                     let nft_attributes = serde_json::from_reader(&nft_attributes_file)?;
 
                     if let Value::Object(attributes) = nft_attributes {
-                        let nft_base64 = base64::encode(nft.to_bytes());
+                        let nft_base64 = base64::encode(nft);
 
                         let metadata_placeholder: Vec<MetadataPlaceholder> = attributes
                             .values()

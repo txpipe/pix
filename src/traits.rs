@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use anyhow::Context;
 use image::{DynamicImage, GenericImageView};
@@ -8,17 +8,24 @@ use crate::{cli::Mode, config::AppConfig};
 
 const RARITIES: [&str; 5] = ["common", "uncommon", "rare", "mythical", "legendary"];
 
-pub struct Features {
-    layers_map: HashMap<PathBuf, Vec<Trait>>,
-    pub initial_width: u32,
-    pub initial_height: u32,
+#[derive(Debug, Clone)]
+pub struct Trait {
+    pub layer: String,
+    pub name: String,
+    pub weight: u32,
+    pub image: DynamicImage,
 }
 
-impl Features {
-    pub fn load_layers(config: &AppConfig) -> anyhow::Result<Self> {
-        let mut layers_map = HashMap::new();
+#[derive(Default)]
+pub struct Layers {
+    pub data: Vec<Vec<Trait>>,
+    pub width: u32,
+    pub height: u32,
+}
 
-        let (mut initial_width, mut initial_height) = (0, 0);
+impl Layers {
+    pub fn load(&mut self, config: &AppConfig) -> anyhow::Result<()> {
+        let mut layers_map = HashMap::new();
 
         let feature_paths = config
             .path
@@ -78,9 +85,9 @@ impl Features {
 
                             let (width, height) = image.dimensions();
 
-                            if initial_width == 0 && initial_height == 0 {
-                                initial_width = width;
-                                initial_height = height;
+                            if self.width == 0 && self.height == 0 {
+                                self.width = width;
+                                self.height = height;
                             }
 
                             let name = trait_path
@@ -111,63 +118,44 @@ impl Features {
             layers_map.insert(feature_path, trait_list);
         }
 
-        Ok(Self {
-            layers_map,
-            initial_width,
-            initial_height,
-        })
-    }
-
-    pub fn layers<'a>(&'a self, config: &AppConfig) -> anyhow::Result<Layers<'a>> {
-        let mut layers = Vec::new();
+        let mut data = Vec::new();
 
         for item in &config.attributes {
-            let trait_list = self
-                .layers_map
-                .get(&config.path.join(item))
-                .with_context(|| {
-                    format!("{} folder not found in {}", item, config.path.display())
-                })?;
+            let trait_list = layers_map.get(&config.path.join(item)).with_context(|| {
+                format!("{} folder not found in {}", item, config.path.display())
+            })?;
 
-            layers.push(trait_list);
+            data.push(trait_list.clone());
         }
 
-        Ok(layers)
+        self.data = data;
+
+        Ok(())
     }
-}
 
-pub type Layers<'a> = Vec<&'a Vec<Trait>>;
+    pub fn create_unique(&self) -> Vec<usize> {
+        let mut random = Vec::new();
 
-pub fn create_unique(features: &Layers) -> Vec<usize> {
-    let mut random = Vec::new();
+        let mut rng = rand::thread_rng();
 
-    let mut rng = rand::thread_rng();
+        for trait_list in &self.data {
+            let total_weight = trait_list.iter().fold(0, |acc, elem| acc + elem.weight);
 
-    for trait_list in features {
-        let total_weight = trait_list.iter().fold(0, |acc, elem| acc + elem.weight);
+            let random_num = rng.gen_range(0.0..1.0);
 
-        let random_num = rng.gen_range(0.0..1.0);
+            let mut n = (random_num * total_weight as f64).floor();
 
-        let mut n = (random_num * total_weight as f64).floor();
+            for (index, elem) in trait_list.iter().enumerate() {
+                n -= elem.weight as f64;
 
-        for (index, elem) in trait_list.iter().enumerate() {
-            n -= elem.weight as f64;
+                if n < 0.0 {
+                    random.push(index);
 
-            if n < 0.0 {
-                random.push(index);
-
-                break;
+                    break;
+                }
             }
         }
+
+        random
     }
-
-    random
-}
-
-#[derive(Debug)]
-pub struct Trait {
-    pub layer: String,
-    pub name: String,
-    pub weight: u32,
-    pub image: DynamicImage,
 }

@@ -11,7 +11,7 @@ use nft_gen::{
     config::AppConfig,
     metadata,
     nft_maker::{MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest},
-    traits::{self, Features},
+    traits::Layers,
     utils,
 };
 use serde_json::{Map, Value};
@@ -30,17 +30,11 @@ fn main() -> anyhow::Result<()> {
             let config = AppConfig::new(&args.config)?;
             let progress = ProgressBar::new(config.amount as u64);
 
-            let features = Features::load_layers(&config)?;
+            let mut layers = Layers::default();
 
-            let Features {
-                initial_width,
-                initial_height,
-                ..
-            } = features;
+            layers.load(&config)?;
 
             utils::clean(output)?;
-
-            let layers = features.layers(&config)?;
 
             let mut fail_count = 0;
 
@@ -49,7 +43,7 @@ fn main() -> anyhow::Result<()> {
             let mut count = 1;
 
             while count <= config.amount {
-                let unique = traits::create_unique(&layers);
+                let unique = layers.create_unique();
 
                 let unique_str = unique
                     .iter()
@@ -87,7 +81,7 @@ fn main() -> anyhow::Result<()> {
                 .collect::<Vec<(usize, String)>>()
                 .par_iter()
                 .for_each(|(count, unique_str)| {
-                    let mut base = RgbaImage::new(initial_width, initial_height);
+                    let mut base = RgbaImage::new(layers.width, layers.height);
 
                     let unique = unique_str
                         .split(':')
@@ -98,7 +92,7 @@ fn main() -> anyhow::Result<()> {
                     let folder_name = output.join(format!("{}#{}", config.name, count));
                     fs::create_dir(&folder_name).expect("failed to created a folder for an NFT");
 
-                    for (index, trait_list) in unique.zip(&layers) {
+                    for (index, trait_list) in unique.zip(&layers.data) {
                         let nft_trait = &trait_list[index];
 
                         trait_info.insert(

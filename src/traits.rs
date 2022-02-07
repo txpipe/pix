@@ -46,8 +46,6 @@ impl Layers {
 
             match config.mode {
                 Mode::Advanced => {
-                    println!("{}", layer_path.display());
-
                     let trait_paths = layer_path
                         .read_dir()
                         .with_context(|| format!("{} is not a folder", layer_path.display()))?

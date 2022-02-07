@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use image::{DynamicImage, GenericImageView};
 use rand::Rng;
 
@@ -27,17 +27,15 @@ impl Layers {
     pub fn load(&mut self, config: &AppConfig) -> anyhow::Result<()> {
         let mut layers_map = HashMap::new();
 
-        let feature_paths = config
+        let layer_paths = config
             .path
             .read_dir()
             .with_context(|| format!("{} is not a folder", config.path.display()))?
-            .filter(|x| x.as_ref().unwrap().path().is_dir());
+            .map(|dir| dir.unwrap().path())
+            .filter(|path| path.is_dir());
 
-        for feature_dir in feature_paths {
-            let feature_dir = feature_dir?;
-            let feature_path = feature_dir.path();
-
-            let layer_name = feature_path
+        for layer_path in layer_paths {
+            let layer_name = layer_path
                 .file_name()
                 .unwrap()
                 .to_str()
@@ -47,21 +45,64 @@ impl Layers {
             let mut trait_list = Vec::new();
 
             match config.mode {
-                Mode::Advanced => todo!("implement advanced mode"),
-                Mode::Simple => {
-                    let rarity_paths = feature_path
-                        .read_dir()
-                        .with_context(|| format!("{} is not a folder", feature_path.display()))?
-                        .filter(|x| x.as_ref().unwrap().path().is_dir())
-                        .filter(|x| {
-                            RARITIES
-                                .iter()
-                                .any(|y| x.as_ref().unwrap().path().ends_with(y))
-                        });
+                Mode::Advanced => {
+                    println!("{}", layer_path.display());
 
-                    for rarity_dir in rarity_paths {
-                        let rarity_dir = rarity_dir?;
-                        let rarity_path = rarity_dir.path();
+                    let trait_paths = layer_path
+                        .read_dir()
+                        .with_context(|| format!("{} is not a folder", layer_path.display()))?
+                        .map(|dir| dir.unwrap().path())
+                        .filter(|path| path.is_file())
+                        .filter(|path| matches!(path.extension(), Some(ext) if ext == "png"));
+
+                    for trait_path in trait_paths {
+                        let image = image::open(&trait_path).with_context(|| {
+                            format!("failed to load image {}", trait_path.display())
+                        })?;
+
+                        let (width, height) = image.dimensions();
+
+                        if self.width == 0 && self.height == 0 {
+                            self.width = width;
+                            self.height = height;
+                        }
+
+                        let file_name = trait_path
+                            .file_stem()
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string();
+
+                        if file_name.contains('#') {
+                            let parts: Vec<&str> = file_name.split('#').collect();
+
+                            let name = parts[0];
+
+                            let weight = parts[1].parse().with_context(|| {
+                                format!("{} is not a parsable number", parts[1])
+                            })?;
+
+                            trait_list.push(Trait {
+                                layer: layer_name.clone(),
+                                name: name.to_owned(),
+                                image,
+                                weight,
+                            })
+                        } else {
+                            return Err(anyhow!("{} is missing `#weight`", file_name));
+                        }
+                    }
+                }
+                Mode::Simple => {
+                    let rarity_paths = layer_path
+                        .read_dir()
+                        .with_context(|| format!("{} is not a folder", layer_path.display()))?
+                        .map(|dir| dir.unwrap().path())
+                        .filter(|path| path.is_dir())
+                        .filter(|path| RARITIES.iter().any(|rarity| path.ends_with(rarity)));
+
+                    for rarity_path in rarity_paths {
                         let rarity_name = rarity_path
                             .file_name()
                             .with_context(|| {
@@ -72,13 +113,11 @@ impl Layers {
                         let trait_paths = rarity_path
                             .read_dir()
                             .with_context(|| format!("{} is not a folder", rarity_path.display()))?
-                            .filter(|x| x.as_ref().unwrap().path().is_file())
-                            .filter(|x| x.as_ref().unwrap().path().extension().unwrap() == "png");
+                            .map(|dir| dir.unwrap().path())
+                            .filter(|path| path.is_file())
+                            .filter(|path| matches!(path.extension(), Some(ext) if ext == "png"));
 
-                        for trait_file in trait_paths {
-                            let trait_file = trait_file?;
-                            let trait_path = trait_file.path();
-
+                        for trait_path in trait_paths {
                             let image = image::open(&trait_path).with_context(|| {
                                 format!("failed to load image {}", trait_path.display())
                             })?;
@@ -115,7 +154,7 @@ impl Layers {
                 }
             }
 
-            layers_map.insert(feature_path, trait_list);
+            layers_map.insert(layer_path, trait_list);
         }
 
         let mut data = Vec::new();

@@ -145,14 +145,12 @@ fn main() -> anyhow::Result<()> {
 
                 let output_dir = output
                     .read_dir()
-                    .with_context(|| format!("{} is not a folder", output.display()))?;
+                    .with_context(|| format!("{} is not a folder", output.display()))?
+                    .map(|dir| dir.unwrap().path());
 
                 let progress = ProgressBar::new(config.amount as u64);
 
-                for nft_dir in output_dir {
-                    let nft_dir = nft_dir?;
-                    let nft_path = nft_dir.path();
-
+                for nft_path in output_dir {
                     let nft_name = nft_path.file_name().unwrap().to_str().unwrap();
 
                     let split_name: Vec<&str> = nft_name.split('#').collect();
@@ -212,15 +210,13 @@ fn main() -> anyhow::Result<()> {
 
                         std::thread::sleep(Duration::from_millis(10));
                     } else {
-                        return Err(anyhow!("failed to nft attributes"));
+                        return Err(anyhow!("failed to read nft attributes"));
                     }
                 }
 
                 progress.finish();
             } else {
-                eprintln!("Error: please provide an nft_maker config to upload");
-
-                process::exit(1);
+                return Err(anyhow!("please provide an nft_maker config to upload"));
             }
         }
     }

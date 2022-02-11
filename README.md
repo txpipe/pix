@@ -6,9 +6,18 @@ A CLI for managing NFT projects
 
 - Generate unique NFTs from attribute files
 - Ordering defined in the config
-- Integrates with <a href="https://nft-maker.io" target="_blank">nft maker</a>
+- Integrates with [nft maker](https://nft-maker.io)
   - generate metadata template
   - upload collections
+
+## Installation
+
+For now pix needs to be built from source.
+
+- install [rustup.rs](https://rustup.rs)
+- `git clone https://github.com/3based/pix.git`
+- `cd pix`
+- `cargo install --path .`
 
 ## Usage
 

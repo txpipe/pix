@@ -48,7 +48,7 @@ impl AppConfig {
 }
 
 pub fn get_global_config_paths() -> anyhow::Result<(PathBuf, PathBuf)> {
-    let project = ProjectDirs::from("rs", "", "nft-gen").context("getting global config folder")?;
+    let project = ProjectDirs::from("rs", "", "pix").context("getting global config folder")?;
 
     let config_dir = project.config_dir().to_path_buf();
     let config_dir_str = config_dir

@@ -1,12 +1,12 @@
 use std::{collections::HashSet, fs, path::Path, process, time::Duration};
 
 use anyhow::{anyhow, Context};
-use directories_next::ProjectDirs;
 use image::RgbaImage;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
+use serde_json::{Map, Value};
 
-use nft_gen::{
+use pix::{
     cli::Commands,
     config::AppConfig,
     metadata,
@@ -14,7 +14,6 @@ use nft_gen::{
     traits::Layers,
     utils,
 };
-use serde_json::{Map, Value};
 
 const OUTPUT: &str = "output";
 
@@ -128,9 +127,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         Commands::New(_args) => {
-            if let Some(project_dirs) = ProjectDirs::from("com", "3Based", "NFTGen") {
-                dbg!(project_dirs.config_dir());
-            }
+            println!("coming soon!")
         }
 
         Commands::Upload(args) => {

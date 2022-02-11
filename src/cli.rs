@@ -3,22 +3,30 @@ use serde::Deserialize;
 
 #[derive(Parser, Debug)]
 pub struct NewCommand {
+    /// The mode for processing attribute rarity
     #[clap(short, long, arg_enum, default_value = "simple")]
     pub mode: Mode,
 }
 
 #[derive(Parser, Debug)]
 pub struct ConfigArgs {
-    #[clap(short, long, default_value = "nft-gen.json")]
+    /// Path to the projects config file
+    #[clap(short, long, default_value = "pix.json")]
     pub config: String,
 }
 
+/// A CLI for managing NFT projects
 #[derive(Parser, Debug)]
 pub enum Commands {
+    /// Clean the output directory
     Clean,
+    /// Generate an NFT collection
     Gen(ConfigArgs),
+    /// Output metadata template that can be uploaded to nft-maker.io
     Metadata(ConfigArgs),
+    /// Create a new project
     New(NewCommand),
+    /// Upload an NFT collection to nft-maker.io
     Upload(ConfigArgs),
 }
 

@@ -32,7 +32,7 @@ SUBCOMMANDS:
 
 There needs to be a config file at the root of a project.
 
-## Example
+### Example
 
 ```json
 {
@@ -60,7 +60,7 @@ There needs to be a config file at the root of a project.
 }
 ```
 
-## Types
+### Types
 
 ```
 {

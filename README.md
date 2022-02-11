@@ -12,7 +12,7 @@ A CLI for managing NFT projects
 
 ## Usage
 
-```shell
+```
 USAGE:
     pix <SUBCOMMAND>
 

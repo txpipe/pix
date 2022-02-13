@@ -45,7 +45,8 @@ There needs to be a config file at the root of a project.
 
 ```json
 {
-  "name": "BasedBears",
+  "name": "BasedBear",
+  "display_name": "Based Bear",
   "twitter": "https://twitter.com/_3based",
   "website": "https://3based.com",
   "copyright": "2022 3Based",
@@ -74,6 +75,7 @@ There needs to be a config file at the root of a project.
 ```
 {
     name: string,
+    display_name?: string,
     twitter?: string,
     website?: string,
     copyright?: string,

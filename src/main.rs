@@ -183,11 +183,15 @@ fn main() -> anyhow::Result<()> {
                             .collect();
 
                         let body = UploadNftRequest {
-                            asset_name: Some(format!("BasedBear{}", number)),
+                            asset_name: Some(format!("{}{}", config.name, number)),
                             preview_image_nft: NftFile {
                                 mimetype: Some(String::from("image/png")),
                                 description: None,
-                                displayname: Some(format!("Based Bear #{}", number)),
+                                displayname: Some(format!(
+                                    "{} #{}",
+                                    config.display_name.as_ref().unwrap_or(&config.name),
+                                    number
+                                )),
                                 file_from_IPFS: None,
                                 file_froms_url: None,
                                 file_from_base64: Some(nft_base64),

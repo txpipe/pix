@@ -11,6 +11,7 @@ use crate::cli::Mode;
 #[derive(Deserialize, Debug)]
 pub struct AppConfig {
     pub name: String,
+    pub display_name: Option<String>,
     pub twitter: Option<String>,
     pub website: Option<String>,
     pub copyright: Option<String>,

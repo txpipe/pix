@@ -2,6 +2,15 @@
 
 A CLI for managing NFT projects
 
+**Table of Contents**
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Config](#config)
+  - [Example](#example)
+  - [Types](#types)
+
 ## Features
 
 - Generate unique NFTs from attribute files

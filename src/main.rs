@@ -33,8 +33,6 @@ fn main() -> anyhow::Result<()> {
 
             layers.load(&config)?;
 
-            utils::clean(output)?;
-
             let mut fail_count = 0;
 
             let mut uniques = HashSet::new();
@@ -70,9 +68,9 @@ fn main() -> anyhow::Result<()> {
                 count += 1;
             }
 
-            if !output.exists() {
-                fs::create_dir(output).context("creating output directory")?;
-            }
+            utils::clean(output)?;
+
+            fs::create_dir(output).context("creating output directory")?;
 
             uniques
                 .into_iter()

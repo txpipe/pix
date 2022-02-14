@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 use pix::{
     cli::Commands,
     config::AppConfig,
-    metadata,
+    metadata, new_project,
     nft_maker::{MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest},
     traits::Layers,
     utils,
@@ -124,8 +124,19 @@ fn main() -> anyhow::Result<()> {
             println!("{}", template);
         }
 
-        Commands::New(_args) => {
-            println!("coming soon!")
+        Commands::New(args) => {
+            let config = AppConfig::new(&args.config)?;
+
+            let metadata = metadata::build_template(&config);
+            //TODO: add optional expiration time to config
+            let new_body = new_project::new_project_template(
+                &config,
+                metadata,
+                //temporary
+                "2022-02-20T00:00:00.988Z".to_string(),
+            );
+
+            println!("{}", new_body)
         }
 
         Commands::Upload(args) => {

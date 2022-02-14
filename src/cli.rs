@@ -25,7 +25,7 @@ pub enum Commands {
     /// Output metadata template that can be uploaded to nft-maker.io
     Metadata(ConfigArgs),
     /// Create a new project
-    New(NewCommand),
+    New(ConfigArgs),
     /// Upload an NFT collection to nft-maker.io
     Upload(ConfigArgs),
 }

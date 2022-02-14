@@ -129,16 +129,29 @@ fn main() -> anyhow::Result<()> {
 
             let metadata = metadata::build_template(&config);
             //TODO: add optional expiration time to config
-            let new_body = new_project::new_project_template(
+            let new_body = new_project::new_project_body(
                 &config,
                 metadata,
                 //temporary
                 "2022-02-20T00:00:00.988Z".to_string(),
             );
 
-            println!("{}", new_body)
-        }
+            println!("{:?}", new_body);
 
+            if let Some(nft_maker_config) = config.nft_maker {
+                let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
+
+                //Data is needed since now we need project id from response for config
+                let data = nft_maker
+                    .create_project(&new_body)
+                    .expect("failed to create project");
+                return Ok(());
+            } else {
+                return Err(anyhow!(
+                    "failed to create project, please double check pix config file."
+                ));
+            }
+        }
         Commands::Upload(args) => {
             if !output.exists() {
                 return Err(anyhow!("no output found, try running gen first"));

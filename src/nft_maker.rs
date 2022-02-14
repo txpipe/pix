@@ -34,6 +34,18 @@ impl NftMakerClient {
 
         Ok(upload_nft_response)
     }
+
+    //Weirdly enough create project also returns UploadNftResponse
+    pub fn create_project(&self, body: &CreateProjectClass) -> anyhow::Result<UploadNftResponse> {
+        let url = format!("{}/CreateProject/{}", BASE_URL, self.apikey);
+
+        let create_project_response: reqwest::blocking::Response =
+            self.client.post(url).json(body).send()?;
+
+        println!("{:?}", create_project_response);
+
+        Ok(create_project_response.json()?)
+    }
 }
 
 #[derive(Serialize, Debug)]
@@ -100,4 +112,29 @@ pub struct NftDetails {
     pub metadata: Option<String>,
     pub single_price: Option<i64>,
     pub uid: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProjectClass {
+    pub projectname: Option<String>,
+    pub description: Option<String>,
+    pub projecturl: Option<String>,
+    pub tokenname_prefix: Option<String>,
+    pub policy_expires: bool,
+    pub policy_locks_date_time: Option<String>,
+    pub payout_walletaddress: Option<String>,
+    pub max_nft_supply: i32,
+    pub policy: PolicyClass,
+    pub metadata: Option<String>,
+    pub address_expiretime: i32,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PolicyClass {
+    pub policy_id: Option<String>,
+    pub private_verifykey: Option<String>,
+    pub private_signingkey: Option<String>,
+    pub policy_script: Option<String>,
 }

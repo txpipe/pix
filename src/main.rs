@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fs, path::Path, process, time::Duration};
 
 use anyhow::{anyhow, Context};
+use dialoguer::{theme::ColorfulTheme, Confirm, Password};
 use image::RgbaImage;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -8,9 +9,14 @@ use serde_json::{Map, Value};
 
 use pix::{
     cli::Commands,
-    config::AppConfig,
+    config::{
+        create_global_config_paths, AppConfig, GlobalConfig, NftMakerGlobalConfig,
+        NftMakerLocalConfig,
+    },
     metadata,
-    nft_maker::{MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest},
+    nft_maker::{
+        CreateProjectRequest, MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest,
+    },
     traits::Layers,
     utils,
 };
@@ -23,6 +29,21 @@ fn main() -> anyhow::Result<()> {
     let output = Path::new(OUTPUT);
 
     match cmds {
+        Commands::Auth => {
+            let (_, global_config_path) = create_global_config_paths()?;
+
+            let apikey = Password::new()
+                .with_prompt("NFT Maker API Key")
+                .interact()?;
+
+            let global_config = GlobalConfig {
+                nft_maker: Some(NftMakerGlobalConfig { apikey }),
+            };
+
+            let contents = serde_json::to_string_pretty(&global_config)?;
+
+            fs::write(&global_config_path, contents)?;
+        }
         Commands::Clean => utils::clean(output)?,
 
         Commands::Gen(args) => {
@@ -124,10 +145,54 @@ fn main() -> anyhow::Result<()> {
             println!("{}", template);
         }
 
-        Commands::New(_args) => {
-            println!("coming soon!")
-        }
+        Commands::New { name } => {
+            let global_config = GlobalConfig::new()?;
 
+            let root_dir = Path::new(&name);
+
+            if root_dir.exists() {
+                return Err(anyhow!("{} already exists", root_dir.display()));
+            }
+
+            fs::create_dir(root_dir)?;
+
+            let mut app_config = AppConfig::prompt()?;
+
+            let config_file_path = root_dir.join("pix.json");
+
+            let images_path = root_dir.join(&app_config.path);
+
+            fs::create_dir(images_path)?;
+
+            if let Some(nft_maker_config) = global_config.nft_maker {
+                if Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("would you like to create a new project on https://nft-maker.io?")
+                    .default(false)
+                    .interact()?
+                {
+                    let metadata = metadata::build_template(&app_config);
+
+                    let body = CreateProjectRequest::new(
+                        &app_config,
+                        metadata,
+                        "2022-02-20T00:00:00.988Z".to_string(),
+                    );
+
+                    let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
+
+                    let data = nft_maker.create_project(&body)?;
+
+                    app_config.nft_maker = Some(NftMakerLocalConfig {
+                        apikey: "".to_string(),
+                        nft_project_id: data.project_id,
+                    })
+                }
+            }
+
+            let contents = serde_json::to_string_pretty(&app_config)?;
+
+            fs::write(config_file_path, contents)?;
+        }
         Commands::Upload(args) => {
             if !output.exists() {
                 return Err(anyhow!("no output found, try running gen first"));

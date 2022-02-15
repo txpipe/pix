@@ -1,5 +1,7 @@
+use std::fmt::Display;
+
 use clap::{ArgEnum, Parser};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
 pub struct NewCommand {
@@ -18,6 +20,8 @@ pub struct ConfigArgs {
 /// A CLI for managing NFT projects
 #[derive(Parser, Debug)]
 pub enum Commands {
+    /// Provide your NFT Maker API Key to use globally
+    Auth,
     /// Clean the output directory
     Clean,
     /// Generate an NFT collection
@@ -25,7 +29,7 @@ pub enum Commands {
     /// Output metadata template that can be uploaded to nft-maker.io
     Metadata(ConfigArgs),
     /// Create a new project
-    New(NewCommand),
+    New { name: String },
     /// Upload an NFT collection to nft-maker.io
     Upload(ConfigArgs),
 }
@@ -42,9 +46,26 @@ impl Commands {
     }
 }
 
-#[derive(Clone, Debug, ArgEnum, Deserialize)]
+#[derive(Clone, Copy, Debug, ArgEnum, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     Simple,
     Advanced,
+}
+
+impl Default for Mode {
+    fn default() -> Self {
+        Mode::Simple
+    }
+}
+
+impl Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Mode::*;
+
+        match self {
+            Simple => write!(f, "simple"),
+            Advanced => write!(f, "advanced"),
+        }
+    }
 }

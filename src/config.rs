@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Context};
@@ -39,7 +38,7 @@ impl AppConfig {
             .to_str()
             .context("failed to load global config")?;
 
-        s.merge(File::with_name(global_file_name).required(true))?;
+        s.merge(File::with_name(global_file_name).required(false))?;
 
         s.merge(File::with_name(file_name).required(true))?;
 
@@ -61,20 +60,18 @@ pub fn get_global_config_paths() -> anyhow::Result<(PathBuf, PathBuf)> {
     Ok((config_dir, path))
 }
 
-pub fn create_global_config_paths() -> anyhow::Result<()> {
+pub fn create_global_config_paths() -> anyhow::Result<(PathBuf, PathBuf)> {
     let (global_config_dir, global_config_file) = get_global_config_paths()?;
 
     if !global_config_dir.exists() {
-        fs::create_dir_all(global_config_dir)?;
+        fs::create_dir_all(&global_config_dir)?;
     }
 
     if !global_config_file.exists() {
-        let mut file = fs::File::create(global_config_file)?;
-
-        file.write_all(b"{}")?;
+        fs::write(&global_config_file, b"{}")?;
     }
 
-    Ok(())
+    Ok((global_config_dir, global_config_file))
 }
 
 #[derive(Deserialize, Debug)]

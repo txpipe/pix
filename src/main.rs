@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fs, path::Path, process, time::Duration};
 
 use anyhow::{anyhow, Context};
+use dialoguer::Password;
 use image::RgbaImage;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -8,7 +9,7 @@ use serde_json::{Map, Value};
 
 use pix::{
     cli::Commands,
-    config::AppConfig,
+    config::{create_global_config_paths, AppConfig},
     metadata, new_project,
     nft_maker::{MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest},
     traits::Layers,
@@ -23,6 +24,25 @@ fn main() -> anyhow::Result<()> {
     let output = Path::new(OUTPUT);
 
     match cmds {
+        Commands::Auth => {
+            let (_, global_config_path) = create_global_config_paths()?;
+
+            let apikey = Password::new()
+                .with_prompt("NFT Maker API Key")
+                .interact()?;
+
+            let mut nft_maker_config = Map::new();
+
+            nft_maker_config.insert("apikey".to_string(), Value::String(apikey));
+
+            let mut config = Map::new();
+
+            config.insert("nft_maker".to_string(), Value::Object(nft_maker_config));
+
+            let contents = serde_json::to_string_pretty(&config)?;
+
+            fs::write(&global_config_path, contents)?;
+        }
         Commands::Clean => utils::clean(output)?,
 
         Commands::Gen(args) => {
@@ -142,9 +162,10 @@ fn main() -> anyhow::Result<()> {
                 let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
 
                 //Data is needed since now we need project id from response for config
-                let data = nft_maker
+                let _data = nft_maker
                     .create_project(&new_body)
                     .expect("failed to create project");
+
                 return Ok(());
             } else {
                 return Err(anyhow!(

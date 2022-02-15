@@ -18,6 +18,8 @@ pub struct ConfigArgs {
 /// A CLI for managing NFT projects
 #[derive(Parser, Debug)]
 pub enum Commands {
+    /// Provide your NFT Maker API Key to use globally
+    Auth,
     /// Clean the output directory
     Clean,
     /// Generate an NFT collection

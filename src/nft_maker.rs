@@ -4,6 +4,8 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::config::AppConfig;
+
 static BASE_URL: &str = "https://api.nft-maker.io";
 
 pub struct NftMakerClient {
@@ -35,16 +37,16 @@ impl NftMakerClient {
         Ok(upload_nft_response)
     }
 
-    //Weirdly enough create project also returns UploadNftResponse
-    pub fn create_project(&self, body: &CreateProjectClass) -> anyhow::Result<UploadNftResponse> {
+    pub fn create_project(
+        &self,
+        body: &CreateProjectRequest,
+    ) -> anyhow::Result<CreateProjectResponse> {
         let url = format!("{}/CreateProject/{}", BASE_URL, self.apikey);
 
-        let create_project_response: reqwest::blocking::Response =
-            self.client.post(url).json(body).send()?;
+        let create_project_response: CreateProjectResponse =
+            self.client.post(url).json(body).send()?.json()?;
 
-        println!("{:?}", create_project_response);
-
-        Ok(create_project_response.json()?)
+        Ok(create_project_response)
     }
 }
 
@@ -116,7 +118,7 @@ pub struct NftDetails {
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateProjectClass {
+pub struct CreateProjectRequest {
     pub projectname: Option<String>,
     pub description: Option<String>,
     pub projecturl: Option<String>,
@@ -125,16 +127,46 @@ pub struct CreateProjectClass {
     pub policy_locks_date_time: Option<String>,
     pub payout_walletaddress: Option<String>,
     pub max_nft_supply: i32,
-    pub policy: PolicyClass,
+    pub policy: Policy,
     pub metadata: Option<String>,
     pub address_expiretime: i32,
 }
 
-#[derive(Deserialize, Debug, Serialize)]
+impl CreateProjectRequest {
+    pub fn new(config: &AppConfig, metadata_info: String, expiration_time: String) -> Self {
+        Self {
+            projectname: Some(config.name.to_owned()),
+            description: None,
+            projecturl: config.website.to_owned(),
+            tokenname_prefix: None,
+            policy_expires: true,
+            policy_locks_date_time: Some(expiration_time),
+            payout_walletaddress: None,
+            max_nft_supply: 1,
+            policy: Default::default(),
+            metadata: Some(metadata_info),
+            address_expiretime: 20,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct PolicyClass {
+pub struct Policy {
     pub policy_id: Option<String>,
     pub private_verifykey: Option<String>,
     pub private_signingkey: Option<String>,
     pub policy_script: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProjectResponse {
+    pub project_id: i32,
+    pub metadata: Option<String>,
+    pub policy_id: Option<String>,
+    pub policy_script: Option<String>,
+    // Datetime
+    pub policy_expiration: Option<String>,
+    pub uid: Option<String>,
 }

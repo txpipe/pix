@@ -1,7 +1,7 @@
 use std::{collections::HashSet, fs, path::Path, process, time::Duration};
 
 use anyhow::{anyhow, Context};
-use dialoguer::Password;
+use dialoguer::{theme::ColorfulTheme, Confirm, Password};
 use image::RgbaImage;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -9,9 +9,14 @@ use serde_json::{Map, Value};
 
 use pix::{
     cli::Commands,
-    config::{create_global_config_paths, AppConfig},
-    metadata, new_project,
-    nft_maker::{MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest},
+    config::{
+        create_global_config_paths, AppConfig, GlobalConfig, NftMakerGlobalConfig,
+        NftMakerLocalConfig,
+    },
+    metadata,
+    nft_maker::{
+        CreateProjectRequest, MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest,
+    },
     traits::Layers,
     utils,
 };
@@ -31,15 +36,11 @@ fn main() -> anyhow::Result<()> {
                 .with_prompt("NFT Maker API Key")
                 .interact()?;
 
-            let mut nft_maker_config = Map::new();
+            let global_config = GlobalConfig {
+                nft_maker: Some(NftMakerGlobalConfig { apikey }),
+            };
 
-            nft_maker_config.insert("apikey".to_string(), Value::String(apikey));
-
-            let mut config = Map::new();
-
-            config.insert("nft_maker".to_string(), Value::Object(nft_maker_config));
-
-            let contents = serde_json::to_string_pretty(&config)?;
+            let contents = serde_json::to_string_pretty(&global_config)?;
 
             fs::write(&global_config_path, contents)?;
         }
@@ -144,34 +145,53 @@ fn main() -> anyhow::Result<()> {
             println!("{}", template);
         }
 
-        Commands::New(args) => {
-            let config = AppConfig::new(&args.config)?;
+        Commands::New { name } => {
+            let global_config = GlobalConfig::new()?;
 
-            let metadata = metadata::build_template(&config);
-            //TODO: add optional expiration time to config
-            let new_body = new_project::new_project_body(
-                &config,
-                metadata,
-                //temporary
-                "2022-02-20T00:00:00.988Z".to_string(),
-            );
+            let root_dir = Path::new(&name);
 
-            println!("{:?}", new_body);
-
-            if let Some(nft_maker_config) = config.nft_maker {
-                let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
-
-                //Data is needed since now we need project id from response for config
-                let _data = nft_maker
-                    .create_project(&new_body)
-                    .expect("failed to create project");
-
-                return Ok(());
-            } else {
-                return Err(anyhow!(
-                    "failed to create project, please double check pix config file."
-                ));
+            if root_dir.exists() {
+                return Err(anyhow!("{} already exists", root_dir.display()));
             }
+
+            fs::create_dir(root_dir)?;
+
+            let mut app_config = AppConfig::prompt()?;
+
+            let config_file_path = root_dir.join("pix.json");
+
+            let images_path = root_dir.join(&app_config.path);
+
+            fs::create_dir(images_path)?;
+
+            if let Some(nft_maker_config) = global_config.nft_maker {
+                if Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("would you like to create a new project on https://nft-maker.io?")
+                    .default(false)
+                    .interact()?
+                {
+                    let metadata = metadata::build_template(&app_config);
+
+                    let body = CreateProjectRequest::new(
+                        &app_config,
+                        metadata,
+                        "2022-02-20T00:00:00.988Z".to_string(),
+                    );
+
+                    let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
+
+                    let data = nft_maker.create_project(&body)?;
+
+                    app_config.nft_maker = Some(NftMakerLocalConfig {
+                        apikey: "".to_string(),
+                        nft_project_id: data.project_id,
+                    })
+                }
+            }
+
+            let contents = serde_json::to_string_pretty(&app_config)?;
+
+            fs::write(config_file_path, contents)?;
         }
         Commands::Upload(args) => {
             if !output.exists() {

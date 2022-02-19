@@ -157,7 +157,7 @@ impl Layers {
 
         let mut data = Vec::new();
 
-        for item in &config.attributes {
+        for item in &config.layers {
             let trait_list = layers_map.get(&config.path.join(item)).with_context(|| {
                 format!("{} folder not found in {}", item, config.path.display())
             })?;

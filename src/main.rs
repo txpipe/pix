@@ -13,11 +13,11 @@ use pix::{
         create_global_config_paths, AppConfig, GlobalConfig, NftMakerGlobalConfig,
         NftMakerLocalConfig,
     },
+    layers::Layers,
     metadata,
     nft_maker::{
         CreateProjectRequest, MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest,
     },
-    traits::Layers,
     utils,
 };
 
@@ -162,7 +162,13 @@ fn main() -> anyhow::Result<()> {
 
             let images_path = root_dir.join(&app_config.path);
 
-            fs::create_dir(images_path)?;
+            fs::create_dir(&images_path)?;
+
+            for layer in &app_config.layers {
+                let layer_path = images_path.join(layer);
+
+                fs::create_dir(&layer_path)?;
+            }
 
             if let Some(nft_maker_config) = global_config.nft_maker {
                 if Confirm::with_theme(&ColorfulTheme::default())

@@ -23,7 +23,7 @@ pub struct AppConfig {
     pub amount: usize,
     pub tolerance: usize,
     pub path: PathBuf,
-    pub attributes: Vec<String>,
+    pub layers: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nft_maker: Option<NftMakerLocalConfig>,
 }
@@ -112,7 +112,7 @@ impl AppConfig {
 
         let amount: usize = Input::new().with_prompt("enter amount").interact_text()?;
 
-        let mut attributes = Vec::new();
+        let mut layers = Vec::new();
 
         if Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("would you like to enter layers?")
@@ -120,13 +120,13 @@ impl AppConfig {
             .interact()?
         {
             loop {
-                let attribute: String = Input::new().allow_empty(true).interact_text()?;
+                let layer: String = Input::new().allow_empty(true).interact_text()?;
 
-                if attribute.is_empty() {
+                if layer.is_empty() {
                     break;
                 }
 
-                attributes.push(attribute);
+                layers.push(layer);
             }
         }
 
@@ -140,7 +140,7 @@ impl AppConfig {
             amount,
             tolerance: 50,
             path: "images".into(),
-            attributes,
+            layers,
             nft_maker: None,
         })
     }

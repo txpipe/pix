@@ -63,7 +63,7 @@ There needs to be a config file at the root of a project.
   "amount": 10000,
   "tolerance": 50,
   "path": "images",
-  "attributes": [
+  "layers": [
     "background",
     "eyes",
     "Base",
@@ -92,7 +92,7 @@ There needs to be a config file at the root of a project.
     amount: integer,
     tolerance: integer,
     path: string,
-    attributes: string[],
+    layers: string[],
     nft_maker?: {
         apikey: string,
         nft_project_id: integer

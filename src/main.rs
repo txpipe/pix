@@ -198,6 +198,10 @@ fn main() -> anyhow::Result<()> {
             let contents = serde_json::to_string_pretty(&app_config)?;
 
             fs::write(config_file_path, contents)?;
+
+            println!("\nDone! ✅ To get started:\n");
+            println!("cd {}", &name);
+            println!("and add some traits into the images/ directory 🚀");
         }
         Commands::Upload(args) => {
             if !output.exists() {

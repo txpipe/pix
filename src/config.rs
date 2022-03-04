@@ -10,6 +10,8 @@ use crate::cli::Mode;
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct AppConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub policy_id: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
@@ -20,6 +22,8 @@ pub struct AppConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copyright: Option<String>,
     pub mode: Mode,
+    #[serde(default)]
+    pub start_at_one: bool,
     pub amount: usize,
     pub tolerance: usize,
     pub path: PathBuf,
@@ -56,6 +60,7 @@ impl AppConfig {
     pub fn prompt() -> anyhow::Result<Self> {
         let name: String = Input::new()
             .with_prompt("enter asset name")
+            .allow_empty(false)
             .interact_text()?;
 
         let display_name: String = Input::new()
@@ -65,6 +70,17 @@ impl AppConfig {
 
         let display_name = if !display_name.is_empty() {
             Some(display_name)
+        } else {
+            None
+        };
+
+        let policy_id: String = Input::new()
+            .with_prompt("enter policy id")
+            .allow_empty(false)
+            .interact_text()?;
+
+        let policy_id = if !policy_id.is_empty() {
+            Some(policy_id)
         } else {
             None
         };
@@ -131,12 +147,14 @@ impl AppConfig {
         }
 
         Ok(Self {
+            policy_id,
             name,
             display_name,
             twitter,
             website,
             copyright,
             mode,
+            start_at_one: false,
             amount,
             tolerance: 50,
             path: "images".into(),

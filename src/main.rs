@@ -91,14 +91,18 @@ fn main() -> anyhow::Result<()> {
 
             utils::clean(output)?;
 
-            fs::create_dir(output).context("creating output directory")?;
+            fs::create_dir(output)?;
 
             uniques
                 .into_iter()
                 .enumerate()
                 .collect::<Vec<(usize, String)>>()
                 .par_iter()
-                .for_each(|(count, unique_str)| {
+                .for_each(|(mut count, unique_str)| {
+                    if config.start_at_one {
+                        count += 1
+                    }
+
                     let mut base = RgbaImage::new(layers.width, layers.height);
 
                     let unique = unique_str
@@ -122,14 +126,20 @@ fn main() -> anyhow::Result<()> {
                     }
 
                     let nft_image_path = folder_name.join(format!("{}#{}.png", config.name, count));
-                    let metadata_path = folder_name.join(format!("{}#{}.json", config.name, count));
+                    let attributes_path =
+                        folder_name.join(format!("{}#{}.json", config.name, count));
+                    let metadata_path = folder_name.join("metadata.json");
 
                     base.save(nft_image_path).expect("failed to create image");
 
-                    let metadata =
-                        serde_json::to_string(&trait_info).expect("failed to create metadata");
+                    let attributes = serde_json::to_string_pretty(&trait_info)
+                        .expect("failed to create attributes");
 
-                    fs::write(metadata_path, metadata).expect("failed to create metadata");
+                    fs::write(attributes_path, attributes).expect("failed to create attributes");
+
+                    let meta = metadata::build_with_attributes(&config, trait_info, count);
+
+                    fs::write(metadata_path, meta).expect("failed to create metadata");
 
                     progress.inc(1);
                 });

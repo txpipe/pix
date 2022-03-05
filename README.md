@@ -28,6 +28,8 @@ For now pix needs to be built from source.
 - `cd pix`
 - `cargo install --path .`
 
+> If you decide to make code changes to customize it to your needs you'll have to re-run `cargo install --path .`
+
 ## Usage
 
 ```
@@ -38,6 +40,7 @@ OPTIONS:
     -h, --help    Print help information
 
 SUBCOMMANDS:
+    auth        Provide your NFT Maker API Key to use globally
     clean       Clean the output directory
     gen         Generate an NFT collection
     help        Print this message or the help of the given subcommand(s)
@@ -54,12 +57,14 @@ There needs to be a config file at the root of a project.
 
 ```json
 {
+  "policy_id": "123",
   "name": "BasedBear",
   "display_name": "Based Bear",
   "twitter": "https://twitter.com/_3based",
   "website": "https://3based.com",
   "copyright": "2022 3Based",
   "mode": "simple",
+  "start_at_one": false,
   "amount": 10000,
   "tolerance": 50,
   "path": "images",
@@ -83,12 +88,14 @@ There needs to be a config file at the root of a project.
 
 ```
 {
+    policy_id?: string,
     name: string,
     display_name?: string,
     twitter?: string,
     website?: string,
     copyright?: string,
     mode: "simple" | "advanced",
+    start_at_one?: true,
     amount: integer,
     tolerance: integer,
     path: string,

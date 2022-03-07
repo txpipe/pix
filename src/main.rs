@@ -18,6 +18,7 @@ use pix::{
     nft_maker::{
         CreateProjectRequest, MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest,
     },
+    rarity::Rarity,
     utils,
 };
 
@@ -63,13 +64,7 @@ fn main() -> anyhow::Result<()> {
             while count <= config.amount {
                 let unique = layers.create_unique();
 
-                let unique_str = unique
-                    .iter()
-                    .map(|n| n.to_string()) // map every integer to a string
-                    .collect::<Vec<String>>()
-                    .join(":");
-
-                if uniques.contains(&unique_str) {
+                if uniques.contains(&unique) {
                     fail_count += 1;
 
                     if fail_count > config.tolerance {
@@ -84,7 +79,7 @@ fn main() -> anyhow::Result<()> {
                     continue;
                 }
 
-                uniques.insert(unique_str);
+                uniques.insert(unique);
 
                 count += 1;
             }
@@ -93,29 +88,37 @@ fn main() -> anyhow::Result<()> {
 
             fs::create_dir(output)?;
 
+            // Calculate rarity
+            let mut rarity = Rarity::new(config.amount);
+
+            for unique in &uniques {
+                for (index, trait_list) in unique.iter().zip(&layers.data) {
+                    let nft_trait = &trait_list[*index];
+
+                    rarity.count_trait(&nft_trait.layer, &nft_trait.name);
+                }
+            }
+
+            // Generate the images
             uniques
                 .into_iter()
                 .enumerate()
-                .collect::<Vec<(usize, String)>>()
+                .collect::<Vec<(usize, Vec<usize>)>>()
                 .par_iter()
-                .for_each(|(mut count, unique_str)| {
+                .for_each(|(mut count, unique)| {
                     if config.start_at_one {
                         count += 1
                     }
 
                     let mut base = RgbaImage::new(layers.width, layers.height);
 
-                    let unique = unique_str
-                        .split(':')
-                        .map(|index| index.parse::<usize>().unwrap());
-
                     let mut trait_info = Map::new();
 
                     let folder_name = output.join(format!("{}#{}", config.name, count));
                     fs::create_dir(&folder_name).expect("failed to created a folder for an NFT");
 
-                    for (index, trait_list) in unique.zip(&layers.data) {
-                        let nft_trait = &trait_list[index];
+                    for (index, trait_list) in unique.iter().zip(&layers.data) {
+                        let nft_trait = &trait_list[*index];
 
                         trait_info.insert(
                             nft_trait.layer.to_owned(),
@@ -143,6 +146,12 @@ fn main() -> anyhow::Result<()> {
 
                     progress.inc(1);
                 });
+
+            let rarity_path = output.join("rarity.json");
+
+            let rarity_data = serde_json::to_string_pretty(&rarity.data)?;
+
+            fs::write(rarity_path, rarity_data)?;
 
             progress.finish();
         }

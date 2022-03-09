@@ -15,7 +15,7 @@ pub fn build_template(config: &AppConfig) -> String {
     for (index, attr) in config.layers.iter().enumerate() {
         let template = Value::String(format!("<attribute{}>", index));
 
-        attributes.insert(attr.to_owned(), template);
+        attributes.insert(attr.name.to_owned(), template);
     }
 
     let mut asset_name = Map::new();

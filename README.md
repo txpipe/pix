@@ -69,13 +69,13 @@ There needs to be a config file at the root of a project.
   "tolerance": 50,
   "path": "images",
   "layers": [
-    "background",
-    "eyes",
-    "Base",
-    "Stitch Color",
-    "belly",
-    "forehead",
-    "Stuffing"
+    { "name": "background" },
+    { "name": "eyes" },
+    { "name": "Base" },
+    { "name": "Stitch Color" },
+    { "name": "belly", "none": 80 },
+    { "name": "forehead", "none": 60 },
+    { "name": "Stuffing" }
   ],
   "nft_maker": {
     "apikey": "",
@@ -99,7 +99,7 @@ There needs to be a config file at the root of a project.
     amount: integer,
     tolerance: integer,
     path: string,
-    layers: string[],
+    layers: { name: string, none?: integer }[],
     nft_maker?: {
         apikey: string,
         nft_project_id: integer

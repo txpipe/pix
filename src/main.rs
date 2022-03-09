@@ -125,7 +125,9 @@ fn main() -> anyhow::Result<()> {
                             Value::String(nft_trait.name.to_owned()),
                         );
 
-                        utils::merge(&mut base, &nft_trait.image);
+                        if let Some(image) = &nft_trait.image {
+                            utils::merge(&mut base, image);
+                        }
                     }
 
                     let nft_image_path = folder_name.join(format!("{}#{}.png", config.name, count));
@@ -184,7 +186,7 @@ fn main() -> anyhow::Result<()> {
             fs::create_dir(&images_path)?;
 
             for layer in &app_config.layers {
-                let layer_path = images_path.join(layer);
+                let layer_path = images_path.join(&layer.name);
 
                 fs::create_dir(&layer_path)?;
             }

@@ -13,7 +13,7 @@ pub struct Trait {
     pub layer: String,
     pub name: String,
     pub weight: u32,
-    pub image: DynamicImage,
+    pub image: Option<DynamicImage>,
 }
 
 #[derive(Default)]
@@ -84,7 +84,7 @@ impl Layers {
                             trait_list.push(Trait {
                                 layer: layer_name.clone(),
                                 name: name.to_owned(),
-                                image,
+                                image: Some(image),
                                 weight,
                             })
                         } else {
@@ -137,7 +137,7 @@ impl Layers {
                             trait_list.push(Trait {
                                 layer: layer_name.clone(),
                                 name,
-                                image,
+                                image: Some(image),
                                 weight: match rarity_name {
                                     Some("common") => 70,
                                     Some("uncommon") => 50,
@@ -158,11 +158,28 @@ impl Layers {
         let mut data = Vec::new();
 
         for item in &config.layers {
-            let trait_list = layers_map.get(&config.path.join(item)).with_context(|| {
-                format!("{} folder not found in {}", item, config.path.display())
-            })?;
+            let trait_list = layers_map
+                .get(&config.path.join(&item.name))
+                .with_context(|| {
+                    format!(
+                        "{} folder not found in {}",
+                        item.name,
+                        config.path.display()
+                    )
+                })?;
 
-            data.push(trait_list.clone());
+            let mut trait_list = trait_list.clone();
+
+            if let Some(weight) = item.none {
+                trait_list.push(Trait {
+                    layer: item.name.clone(),
+                    name: "None".to_string(),
+                    weight,
+                    image: None,
+                })
+            }
+
+            data.push(trait_list);
         }
 
         self.data = data;

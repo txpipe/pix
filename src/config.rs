@@ -27,9 +27,16 @@ pub struct AppConfig {
     pub amount: usize,
     pub tolerance: usize,
     pub path: PathBuf,
-    pub layers: Vec<String>,
+    pub layers: Vec<LayerConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nft_maker: Option<NftMakerLocalConfig>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct LayerConfig {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub none: Option<u32>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default)]
@@ -142,7 +149,10 @@ impl AppConfig {
                     break;
                 }
 
-                layers.push(layer);
+                layers.push(LayerConfig {
+                    name: layer,
+                    none: None,
+                });
             }
         }
 

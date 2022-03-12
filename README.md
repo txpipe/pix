@@ -15,6 +15,7 @@ A CLI for managing NFT projects
 
 - Generate unique NFTs from attribute files
 - Ordering defined in the config
+- Output rarity data
 - Integrates with [nft maker](https://nft-maker.io)
   - generate metadata template
   - upload collections

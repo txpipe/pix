@@ -1,47 +1,113 @@
 use reqwest::{
     blocking::Client,
-    header::{HeaderMap, CONTENT_TYPE},
+    header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE},
 };
 use serde::{Deserialize, Serialize};
 
-use crate::config::AppConfig;
+use crate::config::{AppConfig, NftMakerNetwork, NftProjectId};
 
-static BASE_URL: &str = "https://api.nft-maker.io";
+static MAINNET_URL: &str = "https://api.nft-maker.io";
+static TESTNET_URL: &str = "https://api-testnet.nft-maker.io/v2";
+
+impl NftMakerNetwork {
+    pub fn to_url_string(&self) -> String {
+        match self {
+            Self::Mainnet => String::from(MAINNET_URL),
+            Self::Testnet => String::from(TESTNET_URL),
+        }
+    }
+}
 
 pub struct NftMakerClient {
+    url: String,
+    network: NftMakerNetwork,
     apikey: String,
     client: Client,
 }
 
 impl NftMakerClient {
-    pub fn new(apikey: String) -> anyhow::Result<Self> {
+    pub fn new(apikey: String, network: NftMakerNetwork) -> anyhow::Result<Self> {
         let mut headers = HeaderMap::new();
 
         headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
 
+        if network.is_testnet() {
+            let bearer = format!("Bearer {}", apikey);
+
+            headers.insert(AUTHORIZATION, bearer.parse().unwrap());
+        }
+
         let client = Client::builder().default_headers(headers).build()?;
 
-        Ok(Self { apikey, client })
+        Ok(Self {
+            apikey,
+            client,
+            network,
+            url: network.to_url_string(),
+        })
     }
 
     pub fn upload_nft(
         &self,
-        nft_project_id: i32,
-        body: &UploadNftRequest,
-    ) -> anyhow::Result<UploadNftResponse> {
-        let url = format!("{}/UploadNft/{}/{}", BASE_URL, self.apikey, nft_project_id);
+        nft_project_id: &NftProjectId,
+        asset_name: String,
+        mimetype: String,
+        displayname: String,
+        file_from_base64: String,
+        metadata_placeholder: Vec<MetadataPlaceholder>,
+    ) -> anyhow::Result<()> {
+        match self.network {
+            NftMakerNetwork::Mainnet => {
+                let url = format!("{}/UploadNft/{}/{}", self.url, self.apikey, nft_project_id);
 
-        let upload_nft_response: UploadNftResponse =
-            self.client.post(url).json(body).send()?.json()?;
+                let body = UploadNftRequest {
+                    asset_name: Some(asset_name),
+                    preview_image_nft: NftFile {
+                        mimetype: Some(mimetype),
+                        description: None,
+                        displayname: Some(displayname),
+                        file_from_IPFS: None,
+                        file_froms_url: None,
+                        file_from_base64: Some(file_from_base64),
+                        metadata_placeholder,
+                    },
+                    subfiles: None,
+                    metadata: None,
+                };
 
-        Ok(upload_nft_response)
+                let _ = self.client.post(url).json(&body).send()?;
+            }
+            NftMakerNetwork::Testnet => {
+                let url = format!("{}/UploadNft/{}", self.url, nft_project_id);
+
+                let body = UploadNftRequestV2 {
+                    tokenname: Some(asset_name),
+                    displayname: Some(displayname),
+                    description: None,
+                    preview_image_nft: NftFileV2 {
+                        mimetype: Some(mimetype),
+                        file_from_base64: Some(file_from_base64),
+                        file_from_IPFS: None,
+                        file_froms_url: None,
+                    },
+                    subfiles: None,
+                    metadata_placeholder,
+                    metadata_override: None,
+                    price_in_lovelace: None,
+                };
+
+                let _ = self.client.post(url).json(&body).send()?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn create_project(
         &self,
         body: &CreateProjectRequest,
     ) -> anyhow::Result<CreateProjectResponse> {
-        let url = format!("{}/CreateProject/{}", BASE_URL, self.apikey);
+        let url = format!("{}/CreateProject/{}", self.url, self.apikey);
 
         let create_project_response: CreateProjectResponse =
             self.client.post(url).json(body).send()?.json()?;
@@ -71,11 +137,43 @@ pub struct NftFile {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[allow(non_snake_case)]
+pub struct NftFileV2 {
+    pub mimetype: Option<String>,
+    pub file_from_base64: Option<String>,
+    pub file_froms_url: Option<String>,
+    pub file_from_IPFS: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[allow(non_snake_case)]
+pub struct NftSubFileV2 {
+    pub subfile: NftFileV2,
+    pub description: Option<String>,
+    pub metadata_placeholder: Vec<MetadataPlaceholder>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct UploadNftRequest {
     pub asset_name: Option<String>,
     pub preview_image_nft: NftFile,
-    pub subfiles: Vec<NftFile>,
+    pub subfiles: Option<Vec<NftFile>>,
     pub metadata: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadNftRequestV2 {
+    pub tokenname: Option<String>,
+    pub displayname: Option<String>,
+    pub description: Option<String>,
+    pub preview_image_nft: NftFileV2,
+    pub subfiles: Option<Vec<NftSubFileV2>>,
+    pub metadata_placeholder: Vec<MetadataPlaceholder>,
+    pub metadata_override: Option<String>,
+    pub price_in_lovelace: Option<i64>,
 }
 
 #[derive(Deserialize, Debug)]

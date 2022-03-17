@@ -11,13 +11,11 @@ use pix::{
     cli::Commands,
     config::{
         create_global_config_paths, AppConfig, GlobalConfig, NftMakerGlobalConfig,
-        NftMakerLocalConfig,
+        NftMakerLocalConfig, NftMakerNetwork, NftProjectId,
     },
     layers::Layers,
     metadata,
-    nft_maker::{
-        CreateProjectRequest, MetadataPlaceholder, NftFile, NftMakerClient, UploadNftRequest,
-    },
+    nft_maker::{CreateProjectRequest, MetadataPlaceholder, NftMakerClient},
     rarity::Rarity,
     utils,
 };
@@ -205,13 +203,15 @@ fn main() -> anyhow::Result<()> {
                         "2022-02-20T00:00:00.988Z".to_string(),
                     );
 
-                    let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
+                    let nft_maker =
+                        NftMakerClient::new(nft_maker_config.apikey, NftMakerNetwork::Mainnet)?;
 
                     let data = nft_maker.create_project(&body)?;
 
                     app_config.nft_maker = Some(NftMakerLocalConfig {
+                        network: NftMakerNetwork::Mainnet,
                         apikey: "".to_string(),
-                        nft_project_id: data.project_id,
+                        nft_project_id: NftProjectId::Id(data.project_id),
                     })
                 }
             }
@@ -232,7 +232,8 @@ fn main() -> anyhow::Result<()> {
             let config = AppConfig::new(&args.config)?;
 
             if let Some(nft_maker_config) = config.nft_maker {
-                let nft_maker = NftMakerClient::new(nft_maker_config.apikey)?;
+                let nft_maker =
+                    NftMakerClient::new(nft_maker_config.apikey, nft_maker_config.network)?;
 
                 let output_dir = output
                     .read_dir()
@@ -279,32 +280,22 @@ fn main() -> anyhow::Result<()> {
                             })
                             .collect();
 
-                        let body = UploadNftRequest {
-                            asset_name: Some(format!("{}{}", config.name, number)),
-                            preview_image_nft: NftFile {
-                                mimetype: Some(String::from("image/png")),
-                                description: None,
-                                displayname: Some(format!(
-                                    "{} #{}",
-                                    config.display_name.as_ref().unwrap_or(&config.name),
-                                    number
-                                )),
-                                file_from_IPFS: None,
-                                file_froms_url: None,
-                                file_from_base64: Some(nft_base64),
-                                metadata_placeholder,
-                            },
-                            subfiles: vec![],
-                            metadata: None,
-                        };
-
-                        let _data = nft_maker
-                            .upload_nft(nft_maker_config.nft_project_id, &body)
-                            .expect("failed to upload nft");
+                        nft_maker.upload_nft(
+                            &nft_maker_config.nft_project_id,
+                            format!("{}{}", config.name, number),
+                            String::from("image/png"),
+                            format!(
+                                "{} #{}",
+                                config.display_name.as_ref().unwrap_or(&config.name),
+                                number
+                            ),
+                            nft_base64,
+                            metadata_placeholder,
+                        )?;
 
                         progress.inc(1);
 
-                        std::thread::sleep(Duration::from_millis(10));
+                        std::thread::sleep(Duration::from_micros(100));
                     } else {
                         return Err(anyhow!("failed to read nft attributes"));
                     }

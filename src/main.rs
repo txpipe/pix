@@ -237,7 +237,8 @@ fn main() -> anyhow::Result<()> {
                 let output_dir = output
                     .read_dir()
                     .with_context(|| format!("{} is not a folder", output.display()))?
-                    .map(|dir| dir.unwrap().path());
+                    .map(|dir| dir.unwrap().path())
+                    .filter(|path| path.is_dir());
 
                 let progress = ProgressBar::new(config.amount as u64);
 

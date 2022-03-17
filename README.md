@@ -79,6 +79,7 @@ There needs to be a config file at the root of a project.
     { "name": "Stuffing" }
   ],
   "nft_maker": {
+    "network": "mainnet",
     "apikey": "",
     "nft_project_id": 0
   }
@@ -102,6 +103,7 @@ There needs to be a config file at the root of a project.
     path: string,
     layers: { name: string, none?: integer }[],
     nft_maker?: {
+        network: string,
         apikey: string,
         nft_project_id: integer
     }

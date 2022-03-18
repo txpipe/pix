@@ -7,6 +7,8 @@ A CLI for managing NFT projects
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
+  - [Simple Mode](#simple-mode)
+  - [Advanced Mode](#advanced-mode)
 - [Config](#config)
   - [Example](#example)
   - [Types](#types)
@@ -49,6 +51,49 @@ SUBCOMMANDS:
     new         Create a new project
     upload      Upload an NFT collection to nft-maker.io
 ```
+
+### Simple Mode
+
+In simple mode, you have some base folder for your images defaulted to `images/`. Then in there you have a folder for each layer who's names match the layers provided in the `pix.json` file.
+
+Then within the layer folders you need to have your trait files organized into **rarity folders**.
+
+```
+images/
+|__ambience/
+     |__common/
+     |    |__trait.png
+     |__uncommon/
+     |__rare/
+     |__mythical/
+     |__legendary/
+```
+
+These have their numeric weights defaulted like so:
+
+- common: 70
+- uncommon: 50
+- rare: 20
+- mythical: 10
+- legendary: 5
+
+### Advanced Mode
+
+This mode works much more like what people are used to in hashlips. In advanced mode, you have some base folder for your images defaulted to `images/`. Then in there you have a folder for each layer who's names match the layers provided in the `pix.json` file.
+
+Unlike simple mode, the trait files live in the layer folders and **NOT** within rarity folders. From there you must provide the rarity with a special suffix in the trait file names.
+
+This is the pattern: `name#WEIGHT.png`
+
+```
+images/
+|__ambience/
+     |__trait#30.png
+```
+
+> how dos the pix.json tolerance margin works?
+
+This is a number that the tool uses to decide when to stop trying to make unique combinations. The program essentially loops continuously trying to make as many combinations as specified in the `pix.json` file and stops looping when that amount is reached or when the failure tolerance is reached. Without the tolerance number the program could potentially loop infinitely.
 
 ## Config
 

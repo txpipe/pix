@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::{anyhow, Context};
 use image::{DynamicImage, GenericImageView};
 use rand::Rng;
@@ -25,23 +23,15 @@ pub struct Layers {
 
 impl Layers {
     pub fn load(&mut self, config: &AppConfig) -> anyhow::Result<()> {
-        let mut layers_map = HashMap::new();
+        let mut data = Vec::new();
 
         let layer_paths = config
-            .path
-            .read_dir()
-            .with_context(|| format!("{} is not a folder", config.path.display()))?
-            .map(|dir| dir.unwrap().path())
-            .filter(|path| path.is_dir());
+            .layers
+            .iter()
+            .map(|layer| (layer, config.path.join(layer.name.clone())))
+            .filter(|(_, path)| path.is_dir());
 
-        for layer_path in layer_paths {
-            let layer_name = layer_path
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
-
+        for (layer, layer_path) in layer_paths {
             let mut trait_list = Vec::new();
 
             match config.mode {
@@ -82,7 +72,7 @@ impl Layers {
                             })?;
 
                             trait_list.push(Trait {
-                                layer: layer_name.clone(),
+                                layer: layer.display_name.as_ref().unwrap_or(&layer.name).clone(),
                                 name: name.to_owned(),
                                 image: Some(image),
                                 weight,
@@ -135,7 +125,7 @@ impl Layers {
                                 .to_string();
 
                             trait_list.push(Trait {
-                                layer: layer_name.clone(),
+                                layer: layer.display_name.as_ref().unwrap_or(&layer.name).clone(),
                                 name,
                                 image: Some(image),
                                 weight: match rarity_name {
@@ -152,27 +142,9 @@ impl Layers {
                 }
             }
 
-            layers_map.insert(layer_path, trait_list);
-        }
-
-        let mut data = Vec::new();
-
-        for item in &config.layers {
-            let trait_list = layers_map
-                .get(&config.path.join(&item.name))
-                .with_context(|| {
-                    format!(
-                        "{} folder not found in {}",
-                        item.name,
-                        config.path.display()
-                    )
-                })?;
-
-            let mut trait_list = trait_list.clone();
-
-            if let Some(weight) = item.none {
+            if let Some(weight) = layer.none {
                 trait_list.push(Trait {
-                    layer: item.name.clone(),
+                    layer: layer.display_name.as_ref().unwrap_or(&layer.name).clone(),
                     name: "None".to_string(),
                     weight,
                     image: None,

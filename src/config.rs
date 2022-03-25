@@ -37,6 +37,8 @@ pub struct AppConfig {
 pub struct LayerConfig {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub none: Option<u32>,
 }
 
@@ -228,6 +230,7 @@ impl AppConfig {
 
                 layers.push(LayerConfig {
                     name: layer,
+                    display_name: None,
                     none: None,
                 });
             }

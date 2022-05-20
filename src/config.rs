@@ -43,6 +43,16 @@ pub struct LayerConfig {
     pub display_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub none: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exclude_if_sets: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exclude_if_traits: Option<Vec<IfTrait>>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct IfTrait {
+    pub layer: String,
+    pub traits: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default)]
@@ -231,6 +241,8 @@ impl AppConfig {
                     name: layer,
                     display_name: None,
                     none: None,
+                    exclude_if_sets: None,
+                    exclude_if_traits: None,
                 });
             }
         }

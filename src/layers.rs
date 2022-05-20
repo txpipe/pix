@@ -27,7 +27,7 @@ impl Layers {
     pub fn load(
         &mut self,
         mode: Mode,
-        layers: Vec<LayerConfig>,
+        layers: &[LayerConfig],
         path: PathBuf,
     ) -> anyhow::Result<()> {
         let mut data = Vec::new();
@@ -37,8 +37,14 @@ impl Layers {
             .map(|layer| (layer, path.join(layer.name.clone())))
             .filter(|(_, path)| path.is_dir());
 
-        for (layer, layer_path) in layer_paths {
+        for (layer_config, layer_path) in layer_paths {
             let mut trait_list = Vec::new();
+
+            let layer_name = layer_config
+                .display_name
+                .as_ref()
+                .unwrap_or(&layer_config.name)
+                .clone();
 
             match mode {
                 Mode::Advanced => {
@@ -78,7 +84,7 @@ impl Layers {
                             })?;
 
                             trait_list.push(Trait {
-                                layer: layer.display_name.as_ref().unwrap_or(&layer.name).clone(),
+                                layer: layer_name.clone(),
                                 name: name.to_owned(),
                                 image: Some(image),
                                 weight,
@@ -131,7 +137,7 @@ impl Layers {
                                 .to_string();
 
                             trait_list.push(Trait {
-                                layer: layer.display_name.as_ref().unwrap_or(&layer.name).clone(),
+                                layer: layer_name.clone(),
                                 name,
                                 image: Some(image),
                                 weight: match rarity_name {
@@ -148,13 +154,29 @@ impl Layers {
                 }
             }
 
-            if let Some(weight) = layer.none {
+            let mut already_has_none = false;
+
+            if let Some(weight) = layer_config.none {
                 trait_list.push(Trait {
-                    layer: layer.display_name.as_ref().unwrap_or(&layer.name).clone(),
+                    layer: layer_name.clone(),
                     name: "None".to_string(),
                     weight,
                     image: None,
-                })
+                });
+
+                already_has_none = true;
+            }
+
+            if !already_has_none
+                && (layer_config.exclude_if_traits.is_some()
+                    || layer_config.exclude_if_sets.is_some())
+            {
+                trait_list.push(Trait {
+                    layer: layer_name,
+                    name: "None".to_string(),
+                    weight: 0,
+                    image: None,
+                });
             }
 
             data.push(trait_list);
@@ -165,12 +187,43 @@ impl Layers {
         Ok(())
     }
 
-    pub fn create_unique(&self) -> Vec<usize> {
+    pub fn create_unique(&self, layers: &[LayerConfig], set_name: &str) -> Vec<usize> {
         let mut random = Vec::new();
 
         let mut rng = rand::thread_rng();
 
-        for trait_list in &self.data {
+        for (trait_list, layer_config) in self.data.iter().zip(layers) {
+            if let Some(exclude_if_sets) = &layer_config.exclude_if_sets {
+                if exclude_if_sets.iter().any(|s| s == set_name) {
+                    random.push(trait_list.len() - 1);
+
+                    continue;
+                };
+            }
+
+            if let Some(exclude_if_traits) = &layer_config.exclude_if_traits {
+                if exclude_if_traits.iter().any(|if_trait| {
+                    println!("{:?}", random);
+                    println!("{:?}", if_trait);
+
+                    // search through previously applied layers for a match
+                    random.iter().any(|index| {
+                        println!("{}", index);
+                        let nft_trait = &trait_list[*index];
+
+                        println!("{:?} - {:?}", nft_trait.layer, nft_trait.name);
+
+                        // if the layer name matches, check if the trait name matches
+                        nft_trait.layer == if_trait.layer
+                            && if_trait.traits.iter().any(|t| t == &nft_trait.name)
+                    })
+                }) {
+                    random.push(trait_list.len() - 1);
+
+                    continue;
+                };
+            }
+
             let total_weight = trait_list.iter().fold(0, |acc, elem| acc + elem.weight);
 
             let random_num = rng.gen_range(0.0..1.0);
@@ -178,6 +231,7 @@ impl Layers {
             let mut n = (random_num * total_weight as f64).floor();
 
             for (index, elem) in trait_list.iter().enumerate() {
+                println!("elem: {:?} - {:?}", elem.layer, elem.name);
                 n -= elem.weight as f64;
 
                 if n < 0.0 {

@@ -67,7 +67,7 @@ fn main() -> anyhow::Result<()> {
 
                     layers.load(
                         config.mode,
-                        config.layers.clone(),
+                        &config.layers,
                         config.path.join(set.name.clone()),
                     )?;
 
@@ -78,7 +78,7 @@ fn main() -> anyhow::Result<()> {
                     let mut count = 1;
 
                     while count <= set.amount {
-                        let unique = layers.create_unique();
+                        let unique = layers.create_unique(&config.layers, &set.name);
 
                         if uniques.contains(&unique) {
                             fail_count += 1;
@@ -111,7 +111,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 let mut layers = Layers::default();
 
-                layers.load(config.mode, config.layers, config.path)?;
+                layers.load(config.mode, &config.layers, config.path)?;
 
                 let mut fail_count = 0;
 
@@ -120,7 +120,7 @@ fn main() -> anyhow::Result<()> {
                 let mut count = 1;
 
                 while count <= config.amount {
-                    let unique = layers.create_unique();
+                    let unique = layers.create_unique(&config.layers, "");
 
                     if uniques.contains(&unique) {
                         fail_count += 1;

@@ -203,15 +203,10 @@ impl Layers {
 
             if let Some(exclude_if_traits) = &layer_config.exclude_if_traits {
                 if exclude_if_traits.iter().any(|if_trait| {
-                    println!("{:?}", random);
-                    println!("{:?}", if_trait);
-
                     // search through previously applied layers for a match
-                    random.iter().any(|index| {
-                        println!("{}", index);
-                        let nft_trait = &trait_list[*index];
-
-                        println!("{:?} - {:?}", nft_trait.layer, nft_trait.name);
+                    random.iter().enumerate().any(|(bucket, index)| {
+                        let bucket = &self.data[bucket];
+                        let nft_trait = &bucket[*index];
 
                         // if the layer name matches, check if the trait name matches
                         nft_trait.layer == if_trait.layer
@@ -231,7 +226,6 @@ impl Layers {
             let mut n = (random_num * total_weight as f64).floor();
 
             for (index, elem) in trait_list.iter().enumerate() {
-                println!("elem: {:?} - {:?}", elem.layer, elem.name);
                 n -= elem.weight as f64;
 
                 if n < 0.0 {

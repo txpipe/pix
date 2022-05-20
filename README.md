@@ -106,14 +106,21 @@ There needs to be a config file at the root of a project.
   "policy_id": "123",
   "name": "BasedBear",
   "display_name": "Based Bear",
-  "twitter": "https://twitter.com/_3based",
-  "website": "https://3based.com",
-  "copyright": "2022 3Based",
   "mode": "simple",
   "start_at_one": false,
   "amount": 10000,
   "tolerance": 50,
   "path": "images",
+  "sets": [
+    {
+      "name": "Head",
+      "amount": 20
+    },
+    {
+      "name": "Mohawk",
+      "amount": 20
+    }
+  ],
   "layers": [
     { "name": "background" },
     { "name": "eyes" },
@@ -123,6 +130,11 @@ There needs to be a config file at the root of a project.
     { "name": "forehead", "none": 60 },
     { "name": "Stuffing" }
   ],
+  "extra": {
+    "twitter": "https://twitter.com/_3based",
+    "website": "https://3based.com",
+    "copyright": "2022 3Based",
+  },
   "nft_maker": {
     "network": "mainnet",
     "apikey": "",
@@ -138,15 +150,14 @@ There needs to be a config file at the root of a project.
     policy_id?: string,
     name: string,
     display_name?: string,
-    twitter?: string,
-    website?: string,
-    copyright?: string,
     mode: "simple" | "advanced",
     start_at_one?: true,
     amount: integer,
     tolerance: integer,
     path: string,
+    sets?: { name: string, amount: integer }[],
     layers: { name: string, none?: integer }[],
+    extra: Json,
     nft_maker?: {
         network: string,
         apikey: string,

@@ -235,7 +235,7 @@ impl CreateProjectRequest {
         Self {
             projectname: Some(config.name.to_owned()),
             description: None,
-            projecturl: config.website.to_owned(),
+            projecturl: None,
             tokenname_prefix: None,
             policy_expires: true,
             policy_locks_date_time: Some(expiration_time),

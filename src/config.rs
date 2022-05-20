@@ -5,7 +5,7 @@ use config::{Config, File};
 use dialoguer::{console::Term, theme::ColorfulTheme, Confirm, Input, Select};
 use directories_next::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::cli::Mode;
 
@@ -16,24 +16,27 @@ pub struct AppConfig {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub twitter: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub website: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub copyright: Option<String>,
     pub mode: Mode,
     #[serde(default)]
     pub start_at_one: bool,
     pub amount: usize,
     pub tolerance: usize,
     pub path: PathBuf,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sets: Option<Vec<SetConfig>>,
     pub layers: Vec<LayerConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nft_maker: Option<NftMakerLocalConfig>,
+    pub extra: Option<Map<String, Value>>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default)]
+pub struct SetConfig {
+    pub name: String,
+    pub amount: usize,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct LayerConfig {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -171,15 +174,15 @@ impl AppConfig {
             None
         };
 
+        let mut extra = Map::new();
+
         let twitter: String = Input::new()
             .with_prompt("enter twitter url")
             .allow_empty(true)
             .interact_text()?;
 
-        let twitter = if !twitter.is_empty() {
-            Some(twitter)
-        } else {
-            None
+        if !twitter.is_empty() {
+            extra.insert("twitter".to_string(), Value::String(twitter));
         };
 
         let website: String = Input::new()
@@ -187,10 +190,8 @@ impl AppConfig {
             .allow_empty(true)
             .interact_text()?;
 
-        let website = if !website.is_empty() {
-            Some(website)
-        } else {
-            None
+        if !website.is_empty() {
+            extra.insert("website".to_string(), Value::String(website));
         };
 
         let copyright: String = Input::new()
@@ -198,10 +199,8 @@ impl AppConfig {
             .allow_empty(true)
             .interact_text()?;
 
-        let copyright = if !copyright.is_empty() {
-            Some(copyright)
-        } else {
-            None
+        if !copyright.is_empty() {
+            extra.insert("copyright".to_string(), Value::String(copyright));
         };
 
         let items = vec![Mode::Simple, Mode::Advanced];
@@ -240,16 +239,15 @@ impl AppConfig {
             policy_id,
             name,
             display_name,
-            twitter,
-            website,
-            copyright,
             mode,
             start_at_one: false,
             amount,
             tolerance: 50,
             path: "images".into(),
+            sets: None,
             layers,
             nft_maker: None,
+            extra: Some(extra),
         })
     }
 }

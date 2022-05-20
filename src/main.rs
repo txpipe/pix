@@ -49,38 +49,101 @@ fn main() -> anyhow::Result<()> {
             let config = AppConfig::new(&args.config)?;
             let progress = ProgressBar::new(config.amount as u64);
 
-            let mut layers = Layers::default();
+            let (layer_sets, unique_sets) = if let Some(sets) = &config.sets {
+                let mut layer_sets = Vec::new();
 
-            layers.load(&config)?;
+                let mut unique_sets = Vec::new();
 
-            let mut fail_count = 0;
+                let mut offset = config.amount;
 
-            let mut uniques = HashSet::new();
+                let sets_total = sets.iter().fold(0, |acc, set| acc + set.amount);
 
-            let mut count = 1;
-
-            while count <= config.amount {
-                let unique = layers.create_unique();
-
-                if uniques.contains(&unique) {
-                    fail_count += 1;
-
-                    if fail_count > config.tolerance {
-                        println!(
-                            "You need more features or traits to generate {}",
-                            config.amount
-                        );
-
-                        process::exit(1);
-                    }
-
-                    continue;
+                if sets_total != config.amount {
+                    return Err(anyhow!("amount in sets must equal the total amount"));
                 }
 
-                uniques.insert(unique);
+                for (set_index, set) in sets.iter().enumerate() {
+                    let mut layers = Layers::default();
 
-                count += 1;
-            }
+                    layers.load(
+                        config.mode,
+                        config.layers.clone(),
+                        config.path.join(set.name.clone()),
+                    )?;
+
+                    let mut fail_count = 0;
+
+                    let mut uniques = HashSet::new();
+
+                    let mut count = 1;
+
+                    while count <= set.amount {
+                        let unique = layers.create_unique();
+
+                        if uniques.contains(&unique) {
+                            fail_count += 1;
+
+                            if fail_count > config.tolerance {
+                                println!(
+                                    "You need more features or traits to generate {}",
+                                    set.amount
+                                );
+
+                                process::exit(1);
+                            }
+
+                            continue;
+                        }
+
+                        uniques.insert(unique);
+
+                        count += 1;
+                    }
+
+                    layer_sets.push(layers);
+
+                    offset -= set.amount;
+
+                    unique_sets.push((uniques, set_index, offset));
+                }
+
+                (layer_sets, unique_sets)
+            } else {
+                let mut layers = Layers::default();
+
+                layers.load(config.mode, config.layers, config.path)?;
+
+                let mut fail_count = 0;
+
+                let mut uniques = HashSet::new();
+
+                let mut count = 1;
+
+                while count <= config.amount {
+                    let unique = layers.create_unique();
+
+                    if uniques.contains(&unique) {
+                        fail_count += 1;
+
+                        if fail_count > config.tolerance {
+                            println!(
+                                "You need more features or traits to generate {}",
+                                config.amount
+                            );
+
+                            process::exit(1);
+                        }
+
+                        continue;
+                    }
+
+                    uniques.insert(unique);
+
+                    count += 1;
+                }
+
+                (vec![layers], vec![(uniques, 0, 0)])
+            };
 
             utils::clean(output)?;
 
@@ -89,62 +152,84 @@ fn main() -> anyhow::Result<()> {
             // Calculate rarity
             let mut rarity = Rarity::new(config.amount);
 
-            for unique in &uniques {
-                for (index, trait_list) in unique.iter().zip(&layers.data) {
-                    let nft_trait = &trait_list[*index];
+            for (uniques, set_index, _) in &unique_sets {
+                for unique in uniques {
+                    for (index, trait_list) in unique.iter().zip(&layer_sets[*set_index].data) {
+                        let nft_trait = &trait_list[*index];
 
-                    rarity.count_trait(&nft_trait.layer, &nft_trait.name);
+                        rarity.count_trait(&nft_trait.layer, &nft_trait.name);
+                    }
                 }
             }
 
             // Generate the images
-            uniques
-                .into_iter()
-                .enumerate()
-                .collect::<Vec<(usize, Vec<usize>)>>()
+            unique_sets
                 .par_iter()
-                .for_each(|(mut count, unique)| {
-                    if config.start_at_one {
-                        count += 1
-                    }
+                .for_each(|(uniques, set_index, offset)| {
+                    let layers = &layer_sets[*set_index];
 
-                    let mut base = RgbaImage::new(layers.width, layers.height);
+                    uniques
+                        .iter()
+                        .enumerate()
+                        .collect::<Vec<(usize, &Vec<usize>)>>()
+                        .par_iter()
+                        .for_each(|(mut count, unique)| {
+                            if config.start_at_one {
+                                count += 1
+                            }
 
-                    let mut trait_info = Map::new();
+                            let mut base = RgbaImage::new(layers.width, layers.height);
 
-                    let folder_name = output.join(format!("{}#{}", config.name, count));
-                    fs::create_dir(&folder_name).expect("failed to created a folder for an NFT");
+                            let mut trait_info = Map::new();
 
-                    for (index, trait_list) in unique.iter().zip(&layers.data) {
-                        let nft_trait = &trait_list[*index];
+                            let folder_name =
+                                output.join(format!("{}#{}", config.name, count + offset));
+                            fs::create_dir(&folder_name)
+                                .expect("failed to created a folder for an NFT");
 
-                        trait_info.insert(
-                            nft_trait.layer.to_owned(),
-                            Value::String(nft_trait.name.to_owned()),
-                        );
+                            for (index, trait_list) in unique.iter().zip(&layers.data) {
+                                let nft_trait = &trait_list[*index];
 
-                        if let Some(image) = &nft_trait.image {
-                            utils::merge(&mut base, image);
-                        }
-                    }
+                                trait_info.insert(
+                                    nft_trait.layer.to_owned(),
+                                    Value::String(nft_trait.name.to_owned()),
+                                );
 
-                    let nft_image_path = folder_name.join(format!("{}#{}.png", config.name, count));
-                    let attributes_path =
-                        folder_name.join(format!("{}#{}.json", config.name, count));
-                    let metadata_path = folder_name.join("metadata.json");
+                                if let Some(image) = &nft_trait.image {
+                                    utils::merge(&mut base, image);
+                                }
+                            }
 
-                    base.save(nft_image_path).expect("failed to create image");
+                            let nft_image_path =
+                                folder_name.join(format!("{}#{}.png", config.name, count + offset));
+                            let attributes_path = folder_name.join(format!(
+                                "{}#{}.json",
+                                config.name,
+                                count + offset
+                            ));
+                            let metadata_path = folder_name.join("metadata.json");
 
-                    let attributes = serde_json::to_string_pretty(&trait_info)
-                        .expect("failed to create attributes");
+                            base.save(nft_image_path).expect("failed to create image");
 
-                    fs::write(attributes_path, attributes).expect("failed to create attributes");
+                            let attributes = serde_json::to_string_pretty(&trait_info)
+                                .expect("failed to create attributes");
 
-                    let meta = metadata::build_with_attributes(&config, trait_info, count);
+                            fs::write(attributes_path, attributes)
+                                .expect("failed to create attributes");
 
-                    fs::write(metadata_path, meta).expect("failed to create metadata");
+                            let meta = metadata::build_with_attributes(
+                                trait_info,
+                                config.policy_id.clone(),
+                                config.name.clone(),
+                                config.display_name.as_ref(),
+                                config.extra.clone(),
+                                count + offset,
+                            );
 
-                    progress.inc(1);
+                            fs::write(metadata_path, meta).expect("failed to create metadata");
+
+                            progress.inc(1);
+                        });
                 });
 
             let rarity_path = output.join("rarity.json");

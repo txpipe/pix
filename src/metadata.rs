@@ -51,19 +51,8 @@ pub fn build_template(config: &AppConfig) -> String {
 
     asset_name.insert(String::from("attributes"), Value::Object(attributes));
 
-    if let Some(twitter) = &config.twitter {
-        asset_name.insert(String::from("twitter"), Value::String(twitter.to_owned()));
-    }
-
-    if let Some(website) = &config.website {
-        asset_name.insert(String::from("website"), Value::String(website.to_owned()));
-    }
-
-    if let Some(copyright) = &config.copyright {
-        asset_name.insert(
-            String::from("copyright"),
-            Value::String(copyright.to_owned()),
-        );
+    if let Some(extra) = &config.extra {
+        asset_name.extend(extra.clone());
     }
 
     let json = json!({
@@ -79,16 +68,19 @@ pub fn build_template(config: &AppConfig) -> String {
 }
 
 pub fn build_with_attributes(
-    config: &AppConfig,
     attributes: Map<String, Value>,
+    policy_id: Option<String>,
+    name: String,
+    display_name: Option<&String>,
+    extra: Option<Map<String, Value>>,
     count: usize,
 ) -> String {
     let mut asset_name = Map::new();
 
     asset_name.insert(
         String::from("name"),
-        Value::String(config.display_name.as_ref().map_or_else(
-            || format!("{} #{}", config.name, count),
+        Value::String(display_name.map_or_else(
+            || format!("{} #{}", name, count),
             |display_name| format!("{} #{}", display_name, count),
         )),
     );
@@ -107,8 +99,8 @@ pub fn build_with_attributes(
         String::from("files"),
         json!([
           {
-            "name": config.display_name.as_ref().map_or_else(
-                || format!("{} #{}", config.name, count),
+            "name": display_name.as_ref().map_or_else(
+                || format!("{} #{}", name, count),
                 |display_name| format!("{} #{}", display_name, count),
             ),
             "mediaType": "image/png",
@@ -119,30 +111,16 @@ pub fn build_with_attributes(
 
     asset_name.insert(String::from("attributes"), Value::Object(attributes));
 
-    if let Some(twitter) = &config.twitter {
-        asset_name.insert(String::from("twitter"), Value::String(twitter.to_owned()));
+    if let Some(extra) = &extra {
+        asset_name.extend(extra.clone());
     }
 
-    if let Some(website) = &config.website {
-        asset_name.insert(String::from("website"), Value::String(website.to_owned()));
-    }
-
-    if let Some(copyright) = &config.copyright {
-        asset_name.insert(
-            String::from("copyright"),
-            Value::String(copyright.to_owned()),
-        );
-    }
-
-    let policy_id = config
-        .policy_id
-        .clone()
-        .unwrap_or_else(|| String::from("<policy_id>"));
+    let policy_id = policy_id.unwrap_or_else(|| String::from("<policy_id>"));
 
     let json = json!({
       "721": {
         policy_id: {
-          format!("{}{}", config.name, count): asset_name
+          format!("{}{}", name, count): asset_name
         },
         "version": "1.0"
       }

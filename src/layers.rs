@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
 use anyhow::{anyhow, Context};
 use image::{DynamicImage, GenericImageView};
 use rand::Rng;
 
-use crate::{cli::Mode, config::AppConfig};
+use crate::{cli::Mode, config::LayerConfig};
 
 const RARITIES: [&str; 5] = ["common", "uncommon", "rare", "mythical", "legendary"];
 
@@ -22,19 +24,23 @@ pub struct Layers {
 }
 
 impl Layers {
-    pub fn load(&mut self, config: &AppConfig) -> anyhow::Result<()> {
+    pub fn load(
+        &mut self,
+        mode: Mode,
+        layers: Vec<LayerConfig>,
+        path: PathBuf,
+    ) -> anyhow::Result<()> {
         let mut data = Vec::new();
 
-        let layer_paths = config
-            .layers
+        let layer_paths = layers
             .iter()
-            .map(|layer| (layer, config.path.join(layer.name.clone())))
+            .map(|layer| (layer, path.join(layer.name.clone())))
             .filter(|(_, path)| path.is_dir());
 
         for (layer, layer_path) in layer_paths {
             let mut trait_list = Vec::new();
 
-            match config.mode {
+            match mode {
                 Mode::Advanced => {
                     let trait_paths = layer_path
                         .read_dir()
